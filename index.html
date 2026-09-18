@@ -89,7 +89,7 @@ background:rgba(8,18,31,.96);backdrop-filter:blur(14px);border-top:1px solid #21
       <div class="logo">XY</div>
       <div><div class="title">Cross Patch Recorder</div><div class="subtitle">Long-recording BLE research build</div></div>
     </div>
-    <div class="pill">v8 · live EGG</div>
+    <div class="pill">v8.1 · fixed auto zoom</div>
   </div>
 
   <section id="recordSec" class="section active">
@@ -110,26 +110,26 @@ background:rgba(8,18,31,.96);backdrop-filter:blur(14px);border-top:1px solid #21
           <div class="row">
       <h2>Live signals</h2>
       <div style="display:flex;align-items:center;gap:8px">
-        <span class="small">display only · stored full-rate</span>
+        <span class="small">display only · stored full-rate · auto zoom follows baseline</span>
         <button id="autoZoomBtn" class="secondary" style="padding:7px 9px;font-size:11px">Auto Zoom: ON</button>
       </div>
     </div>
           <div class="signalcard">
-      <div class="signalhead"><span>CH1</span><span><span id="ch1Now">0.0000</span> mV · scale ±<span id="scale1">0.100</span> mV</span></div>
+      <div class="signalhead"><span>CH1</span><span><span id="ch1Now">0.0000</span> mV · span ±<span id="scale1">0.100</span> mV</span></div>
       <div class="plotwrap">
         <div class="yaxis">
           <div class="ylab">Voltage (mV)</div>
-          <div class="yticks"><span id="y1p">+0.100</span><span>0</span><span id="y1n">−0.100</span></div>
+          <div class="yticks"><span id="y1p">0.100</span><span>0</span><span id="y1n">-0.100</span></div>
         </div>
         <canvas id="c1"></canvas>
       </div>
     </div>
           <div class="signalcard">
-      <div class="signalhead"><span>CH2</span><span><span id="ch2Now">0.0000</span> mV · scale ±<span id="scale2">0.100</span> mV</span></div>
+      <div class="signalhead"><span>CH2</span><span><span id="ch2Now">0.0000</span> mV · span ±<span id="scale2">0.100</span> mV</span></div>
       <div class="plotwrap">
         <div class="yaxis">
           <div class="ylab">Voltage (mV)</div>
-          <div class="yticks"><span id="y2p">+0.100</span><span>0</span><span id="y2n">−0.100</span></div>
+          <div class="yticks"><span id="y2p">0.100</span><span>0</span><span id="y2n">-0.100</span></div>
         </div>
         <canvas id="c2"></canvas>
       </div>
@@ -328,7 +328,7 @@ let eggSlow1=[], eggSlow2=[], eggAcc1=0, eggAcc2=0, eggAccN=0;
 const EGG_SLOW_FS=10, EGG_WINDOW_SEC=180, EGG_UPDATE_SEC=10;
 let lastEggUpdate=0;
 
-let autoZoom=true, scale1=0.1, scale2=0.1;
+let autoZoom=true, center1=0, center2=0, span1=0.1, span2=0.1;
 let wakeLock=null;
 
 function safeName(s){return (s||'session').trim().replace(/[^a-zA-Z0-9_-]+/g,'_').replace(/^_+|_+$/g,'')||'session'}
@@ -625,36 +625,94 @@ function addEvent(name){
 }
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 
-function robustScale(arr, oldScale){
-  const vals=arr.map(v=>Math.abs(v)).filter(v=>Number.isFinite(v)).sort((a,b)=>a-b);
-  if(!vals.length) return oldScale || 0.1;
-  const idx=Math.min(vals.length-1,Math.floor(vals.length*0.98));
-  let target=Math.max(0.02, vals[idx]*1.25);
-  if(!autoZoom) return Math.max(oldScale||0.1,0.02);
-  // Fast zoom-out for large signals, slower zoom-in to reduce visual pumping.
-  if(target>oldScale) return target;
-  return oldScale*0.90 + target*0.10;
+function percentile(sorted,p){
+  if(!sorted.length) return 0;
+  const idx=(sorted.length-1)*p;
+  const lo=Math.floor(idx), hi=Math.ceil(idx);
+  if(lo===hi) return sorted[lo];
+  return sorted[lo]*(hi-idx)+sorted[hi]*(idx-lo);
+}
+function robustWindow(arr, oldCenter, oldSpan){
+  const vals=arr.filter(v=>Number.isFinite(v)).slice().sort((a,b)=>a-b);
+  if(!vals.length) return {center:oldCenter||0,span:oldSpan||0.1};
+
+  // Ignore isolated spikes when deciding the live display limits.
+  const q02=percentile(vals,0.02);
+  const q50=percentile(vals,0.50);
+  const q98=percentile(vals,0.98);
+
+  // Center around the rolling median so DC/baseline offsets do not flatten ECG.
+  const targetCenter=q50;
+
+  // Half-range about the median, with 30% headroom.
+  let targetSpan=Math.max(Math.abs(q98-targetCenter),Math.abs(targetCenter-q02))*1.30;
+  targetSpan=Math.max(targetSpan,0.02);
+
+  if(!autoZoom){
+    return {center:oldCenter,span:Math.max(oldSpan,0.02)};
+  }
+
+  // Smooth center changes so baseline wander does not make the trace jump.
+  const center = oldCenter*0.88 + targetCenter*0.12;
+
+  // Zoom OUT quickly if signal grows, zoom IN slowly if it shrinks.
+  let span;
+  if(targetSpan>oldSpan) span=oldSpan*0.25+targetSpan*0.75;
+  else span=oldSpan*0.94+targetSpan*0.06;
+
+  return {center,span};
 }
 function draw(id,arr,color,which){
   const c=$(id),d=window.devicePixelRatio||1,r=c.getBoundingClientRect();
-  c.width=Math.max(1,Math.round(r.width*d));c.height=Math.max(1,Math.round(r.height*d));
-  const x=c.getContext('2d'),w=c.width,h=c.height;x.clearRect(0,0,w,h);
-  x.strokeStyle='rgba(255,255,255,.06)';x.lineWidth=1*d;
-  for(let i=1;i<5;i++){const y=h*i/5;x.beginPath();x.moveTo(0,y);x.lineTo(w,y);x.stroke()}
-  if(which===1){
-    scale1=robustScale(arr,scale1);
-    $('scale1').textContent=scale1.toFixed(3);
-    $('y1p').textContent='+'+scale1.toFixed(3);
-    $('y1n').textContent='−'+scale1.toFixed(3);
-  } else {
-    scale2=robustScale(arr,scale2);
-    $('scale2').textContent=scale2.toFixed(3);
-    $('y2p').textContent='+'+scale2.toFixed(3);
-    $('y2n').textContent='−'+scale2.toFixed(3);
+  c.width=Math.max(1,Math.round(r.width*d));
+  c.height=Math.max(1,Math.round(r.height*d));
+  const x=c.getContext('2d'),w=c.width,h=c.height;
+  x.clearRect(0,0,w,h);
+
+  x.strokeStyle='rgba(255,255,255,.06)';
+  x.lineWidth=1*d;
+  for(let i=1;i<5;i++){
+    const y=h*i/5;
+    x.beginPath();x.moveTo(0,y);x.lineTo(w,y);x.stroke();
   }
-  const max=which===1?scale1:scale2;
-  x.strokeStyle=color;x.lineWidth=1.3*d;x.beginPath();
-  arr.forEach((v,i)=>{const xx=i/(arr.length-1)*w,yy=h/2-(v/max)*h*.42;i?x.lineTo(xx,yy):x.moveTo(xx,yy)});x.stroke()
+
+  let center,span;
+  if(which===1){
+    const win=robustWindow(arr,center1,span1);
+    center1=win.center; span1=win.span;
+    center=center1; span=span1;
+
+    $('scale1').textContent=span1.toFixed(3);
+    $('y1p').textContent=(center1+span1).toFixed(3);
+    $('y1n').textContent=(center1-span1).toFixed(3);
+  }else{
+    const win=robustWindow(arr,center2,span2);
+    center2=win.center; span2=win.span;
+    center=center2; span=span2;
+
+    $('scale2').textContent=span2.toFixed(3);
+    $('y2p').textContent=(center2+span2).toFixed(3);
+    $('y2n').textContent=(center2-span2).toFixed(3);
+  }
+
+  // Draw zero only if zero is actually inside the visible voltage range.
+  const top=center+span, bottom=center-span;
+  if(bottom<=0 && top>=0){
+    const yz=(top/(top-bottom))*h;
+    x.strokeStyle='rgba(255,255,255,.13)';
+    x.beginPath();x.moveTo(0,yz);x.lineTo(w,yz);x.stroke();
+  }
+
+  x.strokeStyle=color;
+  x.lineWidth=1.3*d;
+  x.beginPath();
+  arr.forEach((v,i)=>{
+    const xx=i/(arr.length-1)*w;
+    const norm=(v-center)/span;
+    const yy=h/2-norm*h*0.42;
+    if(i===0)x.moveTo(xx,yy);else x.lineTo(xx,yy);
+  });
+  x.stroke();
 }
 function drawAll(){draw('c1',d1,'#4ea1ff',1);draw('c2',d2,'#5de1e6',2)}
 
@@ -681,7 +739,7 @@ async function refreshFileList(){
   })
 }
 async function exportMeta(){
-  const meta={app:'Cross Patch Recorder BLE v8',session:val('session'),protocol:val('protocol'),subject_trial:val('subject'),
+  const meta={app:'Cross Patch Recorder BLE v8.1',session:val('session'),protocol:val('protocol'),subject_trial:val('subject'),
     nominal_sample_rate_hz_per_channel:Number($('fs').value),
     ina_gain:INA_GAIN,
     python_gain:PYTHON_GAIN,
@@ -701,7 +759,7 @@ async function clearSession(){
 $('autoZoomBtn').onclick=()=>{
   autoZoom=!autoZoom;
   $('autoZoomBtn').textContent='Auto Zoom: '+(autoZoom?'ON':'OFF');
-  if(autoZoom){scale1=0.1;scale2=0.1}
+  if(autoZoom){center1=0;center2=0;span1=0.1;span2=0.1}
   drawAll();
 };
 ['session','protocol','condition','orientation','posture','subject'].forEach(id=>{
