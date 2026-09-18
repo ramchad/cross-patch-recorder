@@ -98,6 +98,16 @@ background:rgba(8,18,31,.96);backdrop-filter:blur(14px);border-top:1px solid #21
 .statusTag.warn{border-color:#6a5525;background:#2b2212;color:#ffd991}
 @media(max-width:520px){.polarWrap{grid-template-columns:1fr;justify-items:center}}
 
+
+.boxGrid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:10px}
+.boxState{display:flex;align-items:center;gap:8px;font-size:11px}
+.boxDot{width:10px;height:10px;border-radius:50%;background:#576579;flex:0 0 auto}
+.boxDot.on{background:#35d07f}
+.boxDot.warn{background:#f3b43f}
+.uploadState{font-size:10px;color:var(--muted);margin-top:3px}
+.uploadState.ok{color:#9ff0c6}.uploadState.err{color:#ffaaa8}.uploadState.busy{color:#ffd487}
+@media(max-width:520px){.boxGrid{grid-template-columns:1fr}}
+
 </style>
 </head>
 <body>
@@ -107,7 +117,7 @@ background:rgba(8,18,31,.96);backdrop-filter:blur(14px);border-top:1px solid #21
       <div class="logo">XY</div>
       <div><div class="title">Cross Patch Recorder</div><div class="subtitle">Long-recording BLE research build</div></div>
     </div>
-    <div class="pill">v9.2 · 4-min EGG view</div>
+    <div class="pill">v10 · Bluefy + Box</div>
   </div>
 
   <section id="recordSec" class="section active">
@@ -121,7 +131,42 @@ background:rgba(8,18,31,.96);backdrop-filter:blur(14px);border-top:1px solid #21
             </div>
             <button id="connectBtn" class="primary">Connect Patch</button>
           </div>
+
           <div id="bleMsg" class="small" style="margin-top:9px"></div>
+        </div>
+
+        <div class="card">
+          <div class="row">
+            <div>
+              <h2>Box cloud backup</h2>
+              <div class="boxState" style="margin-top:6px">
+                <span id="boxDot" class="boxDot"></span>
+                <span id="boxStatus">Not connected</span>
+              </div>
+            </div>
+            <button id="boxConnectBtn" class="secondary">Connect Box</button>
+          </div>
+
+          <label>OAuth worker URL</label>
+          <input id="boxWorkerUrl" placeholder="https://your-worker.workers.dev">
+
+          <label>Box folder name</label>
+          <input id="boxFolderName" value="ECG_measurement">
+
+          <div class="boxGrid">
+            <label class="check">
+              <input id="boxAutoUpload" type="checkbox" checked>
+              <span>Auto-upload completed CSV parts</span>
+            </label>
+            <button id="boxRetryBtn" class="secondary" disabled>Retry pending uploads</button>
+          </div>
+
+          <div id="boxMsg" class="small" style="margin-top:9px">
+            Connect Box before connecting the patch. Local IndexedDB backup is always kept first.
+          </div>
+          <div class="notice" style="margin-top:10px">
+            Box connection uses a short-lived OAuth access token in memory. If it expires, reconnect Box; any unuploaded parts stay saved locally.
+          </div>
         </div>
 
         
@@ -366,6 +411,14 @@ const EGG_SLOW_FS=10, EGG_WINDOW_SEC=180, EGG_UPDATE_SEC=10;
 let lastEggUpdate=0;
 
 let autoZoom=true, center1=0, center2=0, span1=0.1, span2=0.1;
+
+// Box cloud backup state. OAuth token is intentionally kept in memory only.
+let boxAccessToken='';
+let boxTokenExpiresAt=0;
+let boxFolderId='';
+let boxUploadBusy=false;
+const BOX_DIRECT_UPLOAD_LIMIT=50*1024*1024;
+
 let respCenter1=0,respCenter2=0,respSpan1=.05,respSpan2=.05;
 let gastricCenter1=0,gastricCenter2=0,gastricSpan1=.05,gastricSpan2=.05;
 let wakeLock=null;
@@ -407,6 +460,188 @@ function openDB(){return new Promise((resolve,reject)=>{const req=indexedDB.open
 async function putPart(obj){const db=await openDB();return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).put(obj);tx.oncomplete=()=>{db.close();resolve()};tx.onerror=()=>{db.close();reject(tx.error)}})}
 async function getParts(){const db=await openDB();return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readonly');const req=tx.objectStore(STORE).getAll();req.onsuccess=()=>{db.close();resolve(req.result||[])};req.onerror=()=>{db.close();reject(req.error)}})}
 async function clearParts(){const db=await openDB();return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).clear();tx.oncomplete=()=>{db.close();resolve()};tx.onerror=()=>{db.close();reject(tx.error)}})}
+
+
+function setBoxStatus(state,text,msg=''){
+  const dot=$('boxDot');
+  dot.className='boxDot'+(state==='on'?' on':state==='warn'?' warn':'');
+  $('boxStatus').textContent=text;
+  if(msg)$('boxMsg').textContent=msg;
+  $('boxRetryBtn').disabled=!boxAccessToken;
+}
+function normalizeWorkerUrl(v){
+  return String(v||'').trim().replace(/\/+$/,'');
+}
+function saveBoxPrefs(){
+  try{
+    localStorage.setItem('crosspatch_box_worker',normalizeWorkerUrl($('boxWorkerUrl').value));
+    localStorage.setItem('crosspatch_box_folder',$('boxFolderName').value.trim()||'ECG_measurement');
+    localStorage.setItem('crosspatch_box_auto',$('boxAutoUpload').checked?'1':'0');
+  }catch(e){}
+}
+function loadBoxPrefs(){
+  try{
+    $('boxWorkerUrl').value=localStorage.getItem('crosspatch_box_worker')||'';
+    $('boxFolderName').value=localStorage.getItem('crosspatch_box_folder')||'ECG_measurement';
+    $('boxAutoUpload').checked=(localStorage.getItem('crosspatch_box_auto')!=='0');
+  }catch(e){}
+}
+function boxTokenValid(){
+  return !!boxAccessToken && Date.now() < boxTokenExpiresAt-30000;
+}
+function clearBoxToken(){
+  boxAccessToken='';boxTokenExpiresAt=0;boxFolderId='';
+  setBoxStatus('off','Not connected','Box disconnected. Local recording storage is unchanged.');$('boxConnectBtn').textContent='Connect Box';
+}
+function connectBox(){
+  if(recording){
+    setBoxStatus('warn','Finish recording first','Connect Box before starting the BLE recording so the OAuth redirect does not interrupt acquisition.');
+    return;
+  }
+  const worker=normalizeWorkerUrl($('boxWorkerUrl').value);
+  if(!worker || !/^https:\/\//i.test(worker)){
+    setBoxStatus('warn','Worker URL needed','Paste your HTTPS Cloudflare Worker URL first.');
+    return;
+  }
+  saveBoxPrefs();
+  // Worker returns to this GitHub Pages URL after Box authorization.
+  location.href=worker+'/login';
+}
+async function handleBoxOAuthReturn(){
+  const hash=new URLSearchParams(location.hash.replace(/^#/,''));
+  const token=hash.get('box_access_token');
+  const expires=Number(hash.get('box_expires_in')||3600);
+  const err=hash.get('box_error');
+  if(err){
+    history.replaceState(null,'',location.pathname+location.search);
+    setBoxStatus('warn','Connection failed',decodeURIComponent(err));
+    return;
+  }
+  if(!token)return;
+  boxAccessToken=token;
+  boxTokenExpiresAt=Date.now()+Math.max(60,expires)*1000;
+  history.replaceState(null,'',location.pathname+location.search);
+  setBoxStatus('on','Connected','Checking Box account and destination folder…');
+  try{
+    const r=await boxApi('https://api.box.com/2.0/users/me?fields=id,name,login');
+    const user=await r.json();
+    await ensureBoxFolder();
+    setBoxStatus('on','Connected to Box',`Connected as ${user.name||user.login||'Box user'}. Destination: ${$('boxFolderName').value.trim()||'ECG_measurement'}`);$('boxConnectBtn').textContent='Disconnect Box';
+    await retryPendingBoxUploads();
+  }catch(e){
+    setBoxStatus('warn','Box API error',e.message||String(e));
+  }
+}
+async function boxApi(url,opts={}){
+  if(!boxTokenValid()){
+    clearBoxToken();
+    throw new Error('Box access token expired. Tap Connect Box again. Local CSV parts are still safe.');
+  }
+  const headers=new Headers(opts.headers||{});
+  headers.set('Authorization','Bearer '+boxAccessToken);
+  const r=await fetch(url,{...opts,headers});
+  if(r.status===401){
+    clearBoxToken();
+    throw new Error('Box authorization expired. Tap Connect Box again.');
+  }
+  if(!r.ok){
+    let detail='';
+    try{detail=JSON.stringify(await r.json())}catch(e){detail=await r.text()}
+    throw new Error(`Box API ${r.status}: ${detail.slice(0,300)}`);
+  }
+  return r;
+}
+async function ensureBoxFolder(){
+  if(boxFolderId)return boxFolderId;
+  const wanted=($('boxFolderName').value.trim()||'ECG_measurement');
+  saveBoxPrefs();
+
+  let marker='';
+  do{
+    const u=new URL('https://api.box.com/2.0/folders/0/items');
+    u.searchParams.set('fields','id,name,type');
+    u.searchParams.set('limit','1000');
+    if(marker)u.searchParams.set('marker',marker);
+    const r=await boxApi(u.toString(),{headers:{'BoxApi':'shared_link='}});
+    const data=await r.json();
+    const hit=(data.entries||[]).find(x=>x.type==='folder'&&x.name===wanted);
+    if(hit){boxFolderId=hit.id;return boxFolderId}
+    marker=data.next_marker||'';
+  }while(marker);
+
+  const r=await boxApi('https://api.box.com/2.0/folders',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({name:wanted,parent:{id:'0'}})
+  });
+  const data=await r.json();
+  boxFolderId=data.id;
+  return boxFolderId;
+}
+async function updatePartUploadState(part,state,error=''){
+  await putPart({...part,boxStatus:state,boxError:error,boxUploadedAt:state==='uploaded'?new Date().toISOString():(part.boxUploadedAt||'')});
+}
+async function uploadPartToBox(part){
+  if(!boxTokenValid())throw new Error('Box is not connected.');
+  if(part.boxStatus==='uploaded')return true;
+  const folderId=await ensureBoxFolder();
+  const blob=new Blob([part.text],{type:'text/csv'});
+  if(blob.size>BOX_DIRECT_UPLOAD_LIMIT){
+    const mb=(blob.size/1024/1024).toFixed(1);
+    await updatePartUploadState(part,'too_large',`File is ${mb} MB; Box direct browser upload limit is 50 MB.`);
+    throw new Error(`Part ${part.partIndex} is ${mb} MB. Choose a smaller CSV part length for automatic Box upload.`);
+  }
+
+  await updatePartUploadState(part,'uploading','');
+  const fd=new FormData();
+  fd.append('attributes',JSON.stringify({name:part.name,parent:{id:folderId}}));
+  fd.append('file',blob,part.name);
+
+  try{
+    const r=await boxApi('https://upload.box.com/api/2.0/files/content',{method:'POST',body:fd});
+    await r.json();
+    const fresh={...part,boxStatus:'uploaded',boxError:'',boxUploadedAt:new Date().toISOString()};
+    await putPart(fresh);
+    return true;
+  }catch(e){
+    await updatePartUploadState(part,'pending',e.message||String(e));
+    throw e;
+  }
+}
+async function queueBoxUpload(part){
+  if(!$('boxAutoUpload').checked || !boxTokenValid())return;
+  if(boxUploadBusy)return;
+  boxUploadBusy=true;
+  try{
+    await uploadPartToBox(part);
+    setBoxStatus('on','Connected to Box',`Uploaded ${part.name}`);
+  }catch(e){
+    setBoxStatus('warn','Box upload pending',e.message||String(e));
+  }finally{
+    boxUploadBusy=false;
+    await refreshFileList();
+  }
+}
+async function retryPendingBoxUploads(){
+  if(boxUploadBusy||!boxTokenValid())return;
+  boxUploadBusy=true;
+  try{
+    const parts=(await getParts()).filter(p=>p.sessionId===sessionId || !sessionId).sort((a,b)=>a.partIndex-b.partIndex);
+    for(const p of parts){
+      if(p.boxStatus==='uploaded')continue;
+      try{
+        await uploadPartToBox(p);
+        setBoxStatus('on','Connected to Box',`Uploaded ${p.name}`);
+      }catch(e){
+        setBoxStatus('warn','Upload stopped',e.message||String(e));
+        break;
+      }
+    }
+  }finally{
+    boxUploadBusy=false;
+    await refreshFileList();
+  }
+}
 
 async function requestWakeLock(){
   try{if('wakeLock' in navigator){wakeLock=await navigator.wakeLock.request('screen')}}catch(e){}
@@ -697,14 +932,17 @@ async function finalizePart(isFinal){
   const startSec=partStartSample/fs,endSec=sampleCount/fs;
   const header='time_sec,global_sample_index,CH1_csv,CH2_csv,CH1_input_mV,CH2_input_mV,packet_index,part_index\n';
   const name=`${sessionId}_part${String(partIndex).padStart(2,'0')}.csv`;
-  await putPart({
+  const savedPart={
     key:`${sessionId}_${String(partIndex).padStart(3,'0')}`,
     sessionId,partIndex,name,startSec,endSec,
     sampleStart:partStartSample,sampleEnd:sampleCount-1,nextSampleIndex:sampleCount,
-    text:header+currentPartText
-  });
+    text:header+currentPartText,
+    boxStatus:'local',boxError:'',boxUploadedAt:''
+  };
+  await putPart(savedPart);
   partIndex++;partStartSample=sampleCount;currentPartText='';updateCounters();
   if(!isFinal) setMsg(`Auto-saved part ${partIndex-1}. Recording continues…`,'ok');
+  queueBoxUpload(savedPart);
 }
 
 async function startRecording(){
@@ -800,23 +1038,33 @@ async function shareOrDownload(filename,text,type,label){
   setTimeout(()=>URL.revokeObjectURL(a.href),1000);$('exportMsg').textContent=`${label}: browser download requested.`
 }
 async function refreshFileList(){
-  const all=(await getParts()).filter(x=>!sessionId||x.sessionId===sessionId).sort((a,b)=>a.partIndex-b.partIndex);
-  const box=$('fileList');box.innerHTML='';
-  if(!all.length){box.innerHTML='<div class="small">No saved parts yet.</div>';return}
-  all.forEach(p=>{
-    const div=document.createElement('div');div.className='fileitem';
-    const info=document.createElement('div');info.innerHTML=`<b>${p.name}</b><br><span>${p.startSec.toFixed(1)}–${p.endSec.toFixed(1)} s · ${(p.sampleEnd-p.sampleStart).toLocaleString()} samples/ch</span>`;
+  const list=$('fileList');list.innerHTML='';
+  const parts=(await getParts()).sort((a,b)=>(a.sessionId||'').localeCompare(b.sessionId||'')||a.partIndex-b.partIndex);
+  if(parts.length===0){list.innerHTML='<div class="small">No saved CSV parts yet.</div>';return}
+  parts.forEach(p=>{
+    const row=document.createElement('div');row.className='filerow';
+    const left=document.createElement('div');
+    const st=p.boxStatus||'local';
+    const stClass=st==='uploaded'?'ok':st==='uploading'?'busy':(st==='pending'||st==='too_large')?'err':'';
+    const stText=st==='uploaded'?'Box ✓ uploaded':
+      st==='uploading'?'Box ↑ uploading':
+      st==='pending'?'Box ! pending':
+      st==='too_large'?'Box ! too large':'Local only';
+    left.innerHTML=`<b>${escapeHtml(p.name)}</b><div class="small">${p.startSec.toFixed(3)}–${p.endSec.toFixed(3)} s · samples ${p.sampleStart.toLocaleString()}–${p.sampleEnd.toLocaleString()}</div><div class="uploadState ${stClass}">${stText}${p.boxError?' · '+escapeHtml(p.boxError):''}</div>`;
     const btn=document.createElement('button');btn.textContent='Share / Save';btn.onclick=()=>shareOrDownload(p.name,p.text,'text/csv','CSV part');
-    div.appendChild(info);div.appendChild(btn);box.appendChild(div)
+    row.appendChild(left);row.appendChild(btn);list.appendChild(row)
   })
 }
 async function exportMeta(){
-  const meta={app:'Cross Patch Recorder BLE v9.2',session:val('session'),protocol:val('protocol'),subject_trial:val('subject'),
+  const meta={app:'Cross Patch Recorder BLE v10',session:val('session'),protocol:val('protocol'),subject_trial:val('subject'),
     nominal_sample_rate_hz_per_channel:Number($('fs').value),
     ina_gain:INA_GAIN,
     python_gain:PYTHON_GAIN,
     csv_to_input_mV:CSV_TO_INPUT_MV,
     auto_save_part_minutes:Number($('chunkMin').value),
+    box_auto_upload:$('boxAutoUpload').checked,
+    box_folder_name:$('boxFolderName').value.trim()||'ECG_measurement',
+    box_connected_at_export:boxTokenValid(),
     packets_received:packetCount,samples_per_channel:sampleCount,frame_issues:frameIssues,notes:$('notes').value,events,
     guidance:'Keep all CSV parts together and concatenate by part number. time_sec and global_sample_index remain continuous across parts, so no time reset occurs at a file boundary.',
     live_egg_preview_method:'3-minute rolling window, block-averaged to 10 Hz, 2-4 CPM sinusoidal search, channel amplitudes from harmonic fit, patch-local principal XY axis from reconstructed common cycle'};
@@ -841,6 +1089,14 @@ $('autoZoomBtn').onclick=()=>{
   el.addEventListener('change',updateSetupPreview);
 });
 updateSetupPreview();
+
+loadBoxPrefs();
+$('boxConnectBtn').onclick=()=>{ if(boxTokenValid()) clearBoxToken(); else connectBox(); };
+$('boxRetryBtn').onclick=retryPendingBoxUploads;
+$('boxWorkerUrl').addEventListener('change',saveBoxPrefs);
+$('boxFolderName').addEventListener('change',()=>{boxFolderId='';saveBoxPrefs()});
+$('boxAutoUpload').addEventListener('change',saveBoxPrefs);
+handleBoxOAuthReturn();
 
 $('connectBtn').onclick=connect;$('startBtn').onclick=startRecording;$('stopBtn').onclick=stopRecording;
 $('metaBtn').onclick=exportMeta;$('clearBtn').onclick=clearSession;$('refreshParts').onclick=refreshFileList;
