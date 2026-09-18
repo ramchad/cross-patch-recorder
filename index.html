@@ -34,7 +34,7 @@ button.red{background:#3a1720;color:#ffabb3;border-color:#6a2c38}
 button.secondary{background:#0d1d30}button:disabled{opacity:.42}
 label{display:block;color:var(--muted);font-size:10px;margin:8px 0 5px}
 input,select,textarea{width:100%;padding:10px;border-radius:11px;border:1px solid #2a405b;background:#081522;color:#fff;font-size:14px}
-.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.metrics{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
 .metric{background:var(--panel2);border:1px solid #1b3048;border-radius:12px;padding:10px}
 .metric .k{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
 .metric .v{font-size:17px;font-weight:850;margin-top:4px;font-variant-numeric:tabular-nums}
@@ -52,7 +52,7 @@ padding:7px 0;border-bottom:1px solid #172a40;font-size:11px}.eventtime{color:va
 .filelist{display:grid;gap:8px;margin-top:10px}.fileitem{display:flex;align-items:center;justify-content:space-between;gap:8px;
 padding:10px;border:1px solid #1d3249;background:#091624;border-radius:12px}
 .fileitem b{font-size:12px}.fileitem span{font-size:10px;color:var(--muted)}
-.tabs{position:fixed;left:50%;bottom:0;transform:translateX(-50%);width:min(100%,980px);display:grid;grid-template-columns:repeat(4,1fr);
+.tabs{position:fixed;left:50%;bottom:0;transform:translateX(-50%);width:min(100%,980px);display:grid;grid-template-columns:repeat(5,1fr);
 background:rgba(8,18,31,.96);backdrop-filter:blur(14px);border-top:1px solid #21344b;padding:8px 8px calc(8px + env(safe-area-inset-bottom));z-index:10}
 .tab{background:transparent;border:0;color:#8197ad;padding:8px 4px;font-size:11px}.tab.active{color:#fff}
 .section{display:none}.section.active{display:block}.desktopgrid{display:grid;grid-template-columns:1.35fr .85fr;gap:12px}
@@ -63,6 +63,23 @@ background:rgba(8,18,31,.96);backdrop-filter:blur(14px);border-top:1px solid #21
 .yaxis .ylab{position:absolute;left:-15px;top:50%;transform:rotate(-90deg) translateY(-50%);transform-origin:center;white-space:nowrap}
 .yticks{position:absolute;right:0;top:0;bottom:0;display:flex;flex-direction:column;justify-content:space-between;text-align:right}
 
+
+.bioGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin-top:10px}
+.bioCard{background:#091624;border:1px solid #1b3048;border-radius:14px;padding:11px}
+.bioLabel{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.bioValue{font-size:23px;font-weight:850;margin-top:4px;font-variant-numeric:tabular-nums}
+.bioUnit{font-size:10px;color:var(--muted);margin-left:3px}
+.bioWide{grid-column:1/-1}
+.polarWrap{display:grid;grid-template-columns:170px 1fr;gap:12px;align-items:center;margin-top:10px}
+#eggPolar{width:170px;height:170px;background:#06101a;border-radius:16px}
+.statusTag{display:inline-block;padding:5px 8px;border-radius:999px;border:1px solid #2b4664;background:#0b192a;color:#bfd1e5;font-size:10px}
+.statusTag.good{border-color:#246046;background:#102b22;color:#a9f0cb}
+.statusTag.warn{border-color:#6a5525;background:#2b2212;color:#ffd991}
+@media(max-width:520px){
+  .bioGrid{grid-template-columns:repeat(2,1fr)}
+  .polarWrap{grid-template-columns:1fr;justify-items:center}
+}
+
 </style>
 </head>
 <body>
@@ -72,7 +89,7 @@ background:rgba(8,18,31,.96);backdrop-filter:blur(14px);border-top:1px solid #21
       <div class="logo">XY</div>
       <div><div class="title">Cross Patch Recorder</div><div class="subtitle">Long-recording BLE research build</div></div>
     </div>
-    <div class="pill">v7.1 · fixed BLE button</div>
+    <div class="pill">v8 · live EGG</div>
   </div>
 
   <section id="recordSec" class="section active">
@@ -174,6 +191,66 @@ background:rgba(8,18,31,.96);backdrop-filter:blur(14px);border-top:1px solid #21
     </div>
   </section>
 
+
+  <section id="eggSec" class="section">
+    <div class="card">
+      <div class="row">
+        <h2>Live EGG preview</h2>
+        <span id="eggStatus" class="statusTag warn">Collecting</span>
+      </div>
+      <div class="small" style="margin-top:6px">
+        Rolling 3-minute estimate from the simultaneous CH1/CH2 signal. This is a live preview; MATLAB remains the final analysis.
+      </div>
+
+      <div class="bioGrid">
+        <div class="bioCard">
+          <div class="bioLabel">EGG frequency</div>
+          <div class="bioValue"><span id="eggFreq">--</span><span class="bioUnit">CPM</span></div>
+        </div>
+        <div class="bioCard">
+          <div class="bioLabel">EGG SNR</div>
+          <div class="bioValue"><span id="eggSnr">--</span><span class="bioUnit">dB</span></div>
+        </div>
+        <div class="bioCard">
+          <div class="bioLabel">CH1 amplitude</div>
+          <div class="bioValue"><span id="eggAmp1">--</span><span class="bioUnit">mV</span></div>
+        </div>
+        <div class="bioCard">
+          <div class="bioLabel">CH2 amplitude</div>
+          <div class="bioValue"><span id="eggAmp2">--</span><span class="bioUnit">mV</span></div>
+        </div>
+        <div class="bioCard bioWide">
+          <div class="bioLabel">Patch-local principal EGG direction</div>
+          <div class="bioValue"><span id="eggAngle">--</span><span class="bioUnit">°</span></div>
+        </div>
+      </div>
+
+      <div class="polarWrap">
+        <canvas id="eggPolar" width="340" height="340"></canvas>
+        <div>
+          <div class="small">
+            The arrow shows the dominant EGG axis in the <b>patch coordinate system</b>.
+            It is an axis (0–180°), not yet an anatomically validated gastric propagation direction.
+          </div>
+          <div class="notice" style="margin-top:10px">
+            Physical patch orientation: <b id="physicalOrientationText">0deg</b><br>
+            Compare this field with the measured patch-local angle during rotation experiments.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>How the live estimate is calculated</h2>
+      <div class="small" style="margin-top:8px">
+        The app averages the full-rate data to 10 Hz, uses the most recent 3 minutes,
+        searches 2–4 CPM for the strongest combined CH1/CH2 sinusoidal component,
+        estimates each channel amplitude from that component, and calculates the principal
+        XY axis from the reconstructed simultaneous cycle.
+      </div>
+    </div>
+  </section>
+
   <section id="eventsSec" class="section">
     <div class="card">
       <div class="row"><h2>Event markers</h2><span class="small">global session time</span></div>
@@ -224,6 +301,7 @@ background:rgba(8,18,31,.96);backdrop-filter:blur(14px);border-top:1px solid #21
 
 <nav class="tabs">
   <button class="tab active" data-tab="recordSec">Record</button>
+  <button class="tab" data-tab="eggSec">EGG</button>
   <button class="tab" data-tab="eventsSec">Events</button>
   <button class="tab" data-tab="detailsSec">Details</button>
   <button class="tab" data-tab="exportSec">Export</button>
@@ -246,6 +324,10 @@ let rxBuffer=new Uint8Array(0),packetCount=0,sampleCount=0,frameIssues=0;
 let startWall=0,timer=null,events=[],sessionId='',partIndex=1,partStartSample=0;
 let lineBuffer=[],bufferChars=0,flushBusy=false;
 let d1=Array(520).fill(0),d2=Array(520).fill(0),dispCounter=0;
+let eggSlow1=[], eggSlow2=[], eggAcc1=0, eggAcc2=0, eggAccN=0;
+const EGG_SLOW_FS=10, EGG_WINDOW_SEC=180, EGG_UPDATE_SEC=10;
+let lastEggUpdate=0;
+
 let autoZoom=true, scale1=0.1, scale2=0.1;
 let wakeLock=null;
 
@@ -276,6 +358,7 @@ function updateSetupPreview(){
   const el=$('setupPreview');
   if(!el) return;
   el.textContent=`${val('subject')} | ${val('session')} | ${val('protocol')} | ${val('condition')} | ${val('orientation')} | ${val('posture')}`;
+  if($('physicalOrientationText')) $('physicalOrientationText').textContent=val('orientation','Not-specified');
 }
 function fmt(ms){let s=Math.max(0,Math.floor(ms/1000));const h=String(Math.floor(s/3600)).padStart(2,'0');s%=3600;const m=String(Math.floor(s/60)).padStart(2,'0'),ss=String(s%60).padStart(2,'0');return `${h}:${m}:${ss}`}
 function setMsg(msg,cls='small'){const e=$('bleMsg');e.className=cls;e.textContent=msg}
@@ -320,6 +403,152 @@ function onNotify(ev){
   while(rxBuffer.length>=FRAME_BYTES){const frame=rxBuffer.slice(0,FRAME_BYTES);rxBuffer=rxBuffer.slice(FRAME_BYTES);decodeFrame(frame)}
   if(rxBuffer.length>FRAME_BYTES*3){frameIssues++;rxBuffer=new Uint8Array(0);updateCounters()}
 }
+
+function resetEggPreview(){
+  eggSlow1=[];eggSlow2=[];eggAcc1=0;eggAcc2=0;eggAccN=0;lastEggUpdate=0;
+  if($('eggFreq')) $('eggFreq').textContent='--';
+  if($('eggSnr')) $('eggSnr').textContent='--';
+  if($('eggAmp1')) $('eggAmp1').textContent='--';
+  if($('eggAmp2')) $('eggAmp2').textContent='--';
+  if($('eggAngle')) $('eggAngle').textContent='--';
+  if($('eggStatus')){$('eggStatus').textContent='Collecting';$('eggStatus').className='statusTag warn';}
+  drawEggPolar(null);
+}
+function mean(a){return a.reduce((s,v)=>s+v,0)/Math.max(1,a.length)}
+function detrendLinear(a){
+  const n=a.length;if(n<3)return a.slice();
+  let sx=0,sy=0,sxx=0,sxy=0;
+  for(let i=0;i<n;i++){sx+=i;sy+=a[i];sxx+=i*i;sxy+=i*a[i]}
+  const den=n*sxx-sx*sx;
+  const b=den!==0?(n*sxy-sx*sy)/den:0;
+  const c=(sy-b*sx)/n;
+  return a.map((v,i)=>v-(c+b*i));
+}
+function fitAtFrequency(a, freqHz, fs){
+  const n=a.length, w=2*Math.PI*freqHz/fs;
+  let cc=0,ss=0,cs=0,yc=0,ys=0;
+  for(let i=0;i<n;i++){
+    const c=Math.cos(w*i),s=Math.sin(w*i),y=a[i];
+    cc+=c*c;ss+=s*s;cs+=c*s;yc+=y*c;ys+=y*s;
+  }
+  const den=cc*ss-cs*cs;
+  if(Math.abs(den)<1e-12)return {A:0,B:0,power:0,amp:0};
+  const A=(yc*ss-ys*cs)/den;
+  const B=(ys*cc-yc*cs)/den;
+  const amp=Math.sqrt(A*A+B*B);
+  return {A,B,amp,power:amp*amp};
+}
+function median(vals){
+  if(!vals.length)return NaN;
+  const x=vals.slice().sort((a,b)=>a-b),m=Math.floor(x.length/2);
+  return x.length%2?x[m]:(x[m-1]+x[m])/2;
+}
+function pcaAngleFromHarmonics(f1,f2){
+  // Reconstruct one common cycle from simultaneous harmonic coefficients,
+  // then calculate the principal axis angle (axial: 0..180 deg).
+  const K=180;
+  let xs=[],ys=[],mx=0,my=0;
+  for(let k=0;k<K;k++){
+    const ph=2*Math.PI*k/K;
+    const x=f1.A*Math.cos(ph)+f1.B*Math.sin(ph);
+    const y=f2.A*Math.cos(ph)+f2.B*Math.sin(ph);
+    xs.push(x);ys.push(y);mx+=x;my+=y;
+  }
+  mx/=K;my/=K;
+  let cxx=0,cyy=0,cxy=0;
+  for(let k=0;k<K;k++){
+    const x=xs[k]-mx,y=ys[k]-my;cxx+=x*x;cyy+=y*y;cxy+=x*y;
+  }
+  cxx/=K;cyy/=K;cxy/=K;
+  let ang=0.5*Math.atan2(2*cxy,cxx-cyy)*180/Math.PI;
+  if(ang<0)ang+=180;
+  return ang;
+}
+function updateEggPreview(){
+  const need=EGG_WINDOW_SEC*EGG_SLOW_FS;
+  const n=eggSlow1.length;
+  if(n<need){
+    const sec=n/EGG_SLOW_FS;
+    if($('eggStatus')){
+      $('eggStatus').textContent=`Collecting ${Math.floor(sec)}/${EGG_WINDOW_SEC}s`;
+      $('eggStatus').className='statusTag warn';
+    }
+    drawEggPolar(null);
+    return;
+  }
+  let x1=detrendLinear(eggSlow1.slice(-need));
+  let x2=detrendLinear(eggSlow2.slice(-need));
+
+  let best=null, noisePowers=[];
+  // 0.02 CPM search step across 1–6 CPM; choose max combined power inside 2–4 CPM.
+  for(let cpm=1.0;cpm<=6.0001;cpm+=0.02){
+    const hz=cpm/60.0;
+    const f1=fitAtFrequency(x1,hz,EGG_SLOW_FS);
+    const f2=fitAtFrequency(x2,hz,EGG_SLOW_FS);
+    const p=f1.power+f2.power;
+    if(cpm>=2 && cpm<=4 && (!best || p>best.p)) best={cpm,p,f1,f2};
+    noisePowers.push({cpm,p});
+  }
+  if(!best || best.p<=0){
+    $('eggStatus').textContent='Low signal';$('eggStatus').className='statusTag warn';return;
+  }
+  const bg=noisePowers.filter(z=>Math.abs(z.cpm-best.cpm)>=0.35).map(z=>z.p).filter(p=>p>0);
+  const med=median(bg);
+  const snr=(Number.isFinite(med)&&med>0)?10*Math.log10(best.p/med):NaN;
+  const angle=pcaAngleFromHarmonics(best.f1,best.f2);
+
+  $('eggFreq').textContent=best.cpm.toFixed(2);
+  $('eggSnr').textContent=Number.isFinite(snr)?snr.toFixed(1):'--';
+  $('eggAmp1').textContent=best.f1.amp.toFixed(4);
+  $('eggAmp2').textContent=best.f2.amp.toFixed(4);
+  $('eggAngle').textContent=angle.toFixed(1);
+  $('eggStatus').textContent='3-min estimate';
+  $('eggStatus').className='statusTag good';
+  drawEggPolar(angle);
+}
+function feedEggSample(ch1mV,ch2mV,fs){
+  // Block average to ~10 Hz for a lightweight live slow-wave preview.
+  eggAcc1+=ch1mV;eggAcc2+=ch2mV;eggAccN++;
+  const block=Math.max(1,Math.round(fs/EGG_SLOW_FS));
+  if(eggAccN>=block){
+    eggSlow1.push(eggAcc1/eggAccN);
+    eggSlow2.push(eggAcc2/eggAccN);
+    eggAcc1=0;eggAcc2=0;eggAccN=0;
+    const maxN=EGG_WINDOW_SEC*EGG_SLOW_FS;
+    if(eggSlow1.length>maxN){eggSlow1.shift();eggSlow2.shift();}
+    const now=Date.now()/1000;
+    if(now-lastEggUpdate>=EGG_UPDATE_SEC){
+      lastEggUpdate=now;updateEggPreview();
+    }
+  }
+}
+function drawEggPolar(angleDeg){
+  const c=$('eggPolar');if(!c)return;
+  const ctx=c.getContext('2d'),w=c.width,h=c.height,cx=w/2,cy=h/2,r=Math.min(w,h)*0.36;
+  ctx.clearRect(0,0,w,h);
+  ctx.strokeStyle='rgba(255,255,255,.16)';ctx.lineWidth=2;
+  ctx.beginPath();ctx.arc(cx,cy,r,0,2*Math.PI);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cx-r,cy);ctx.lineTo(cx+r,cy);ctx.moveTo(cx,cy-r);ctx.lineTo(cx,cy+r);ctx.stroke();
+  ctx.fillStyle='#8fa3ba';ctx.font='22px -apple-system,Arial';
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText('0°',cx+r+30,cy);ctx.fillText('90°',cx,cy-r-25);ctx.fillText('180°',cx-r-38,cy);
+  if(angleDeg==null||!Number.isFinite(angleDeg))return;
+  const a=angleDeg*Math.PI/180;
+  const dx=Math.cos(a)*r*0.82,dy=-Math.sin(a)*r*0.82;
+  ctx.strokeStyle='#5de1e6';ctx.fillStyle='#5de1e6';ctx.lineWidth=8;
+  // draw bidirectional principal axis because PCA direction is axial
+  ctx.beginPath();ctx.moveTo(cx-dx,cy-dy);ctx.lineTo(cx+dx,cy+dy);ctx.stroke();
+  for(const sgn of [1,-1]){
+    const ex=cx+sgn*dx,ey=cy+sgn*dy;
+    const aa=Math.atan2(sgn*dy,sgn*dx);
+    ctx.beginPath();
+    ctx.moveTo(ex,ey);
+    ctx.lineTo(ex-24*Math.cos(aa-0.45),ey-24*Math.sin(aa-0.45));
+    ctx.lineTo(ex-24*Math.cos(aa+0.45),ey-24*Math.sin(aa+0.45));
+    ctx.closePath();ctx.fill();
+  }
+}
+
 function decodeFrame(frame){
   if(frame.length!==FRAME_BYTES){frameIssues++;updateCounters();return}
   packetCount++;
@@ -331,6 +560,7 @@ function decodeFrame(frame){
     const ch1_csv=(u1-32768)*PYTHON_GAIN/65536.0,ch2_csv=(u2-32768)*PYTHON_GAIN/65536.0;
     const ch1=ch1_csv*CSV_TO_INPUT_MV, ch2=ch2_csv*CSV_TO_INPUT_MV;
     l1=ch1;l2=ch2;
+    feedEggSample(ch1,ch2,fs);
     if(recording){
       const t=sampleCount/fs;
       const line=`${t.toFixed(6)},${ch1_csv.toFixed(8)},${ch2_csv.toFixed(8)},${ch1.toFixed(8)},${ch2.toFixed(8)},${packetCount}\n`;
@@ -372,7 +602,7 @@ async function finalizePart(isFinal){
 async function startRecording(){
   if(!connected||recording)return;
   await clearParts();
-  recording=true;packetCount=0;sampleCount=0;frameIssues=0;events=[];lineBuffer=[];bufferChars=0;currentPartText='';
+  recording=true;packetCount=0;sampleCount=0;frameIssues=0;resetEggPreview();events=[];lineBuffer=[];bufferChars=0;currentPartText='';
   startWall=Date.now();sessionId=baseFilename();partIndex=1;partStartSample=0;
   $('stopBtn').disabled=false;$('startBtn').disabled=true;$('metaBtn').disabled=true;$('eventLog').innerHTML='';
   addEvent('Recording started');timer=setInterval(()=>$('duration').textContent=fmt(Date.now()-startWall),250);
@@ -451,14 +681,15 @@ async function refreshFileList(){
   })
 }
 async function exportMeta(){
-  const meta={app:'Cross Patch Recorder BLE v7.1',session:val('session'),protocol:val('protocol'),subject_trial:val('subject'),
+  const meta={app:'Cross Patch Recorder BLE v8',session:val('session'),protocol:val('protocol'),subject_trial:val('subject'),
     nominal_sample_rate_hz_per_channel:Number($('fs').value),
     ina_gain:INA_GAIN,
     python_gain:PYTHON_GAIN,
     csv_to_input_mV:CSV_TO_INPUT_MV,
     auto_save_part_minutes:Number($('chunkMin').value),
     packets_received:packetCount,samples_per_channel:sampleCount,frame_issues:frameIssues,notes:$('notes').value,events,
-    guidance:'Keep all CSV parts together. Concatenate by part number for MATLAB.'};
+    guidance:'Keep all CSV parts together. Concatenate by part number for MATLAB.',
+    live_egg_preview_method:'3-minute rolling window, block-averaged to 10 Hz, 2-4 CPM sinusoidal search, channel amplitudes from harmonic fit, patch-local principal XY axis from reconstructed common cycle'};
   await shareOrDownload(`${sessionId || baseFilename()}_setup.json`,JSON.stringify(meta,null,2),'application/json','Setup info')
 }
 async function clearSession(){
@@ -486,10 +717,10 @@ $('metaBtn').onclick=exportMeta;$('clearBtn').onclick=clearSession;$('refreshPar
 document.querySelectorAll('[data-event]').forEach(b=>b.onclick=()=>addEvent(b.dataset.event));
 document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.section').forEach(x=>x.classList.remove('active'));
-  b.classList.add('active');$(b.dataset.tab).classList.add('active');if(b.dataset.tab==='exportSec')refreshFileList();setTimeout(drawAll,60)
+  b.classList.add('active');$(b.dataset.tab).classList.add('active');if(b.dataset.tab==='exportSec')refreshFileList();if(b.dataset.tab==='eggSec')setTimeout(()=>drawEggPolar(Number($('eggAngle')?.textContent)),80);setTimeout(drawAll,60)
 });
 document.addEventListener('visibilitychange',async()=>{if(document.visibilityState==='visible'&&recording)await requestWakeLock()});
-window.addEventListener('resize',drawAll);drawAll();refreshFileList();
+window.addEventListener('resize',()=>{drawAll();drawEggPolar(Number($('eggAngle')?.textContent));});drawAll();drawEggPolar(null);refreshFileList();
 })();
 </script>
 </body>
