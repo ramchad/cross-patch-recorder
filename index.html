@@ -1,0 +1,450 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#07111f">
+<title>Cross Patch Recorder BLE v3</title>
+<style>
+:root{
+  --bg:#07111f;--panel:#0d1a2b;--panel2:#091624;--border:#243950;
+  --text:#eef5ff;--muted:#95a9bf;--blue:#55a6ff;--cyan:#5ce1e6;
+  --green:#34d399;--red:#ff7a85;--amber:#ffc46b;
+}
+*{box-sizing:border-box}
+body{margin:0;background:linear-gradient(180deg,#07111f,#091524);color:var(--text);
+font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}
+.wrap{max-width:1050px;margin:auto;padding:16px 12px 36px}
+h1{font-size:21px;margin:0}.sub{font-size:12px;color:var(--muted);margin-top:4px}
+.top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:16px}
+.badge{font-size:10px;padding:6px 9px;border:1px solid #35516f;border-radius:999px;color:#cfe0f2}
+.grid{display:grid;grid-template-columns:1.45fr .85fr;gap:14px}
+.card{background:linear-gradient(180deg,var(--panel),#0a1625);border:1px solid var(--border);
+border-radius:16px;padding:14px;margin-bottom:14px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.status{display:flex;align-items:center;gap:8px}.dot{width:10px;height:10px;border-radius:50%;background:#66768a}
+.dot.on{background:var(--green);box-shadow:0 0 0 4px rgba(52,211,153,.12)}
+.dot.rec{background:var(--red);box-shadow:0 0 0 4px rgba(255,122,133,.12)}
+.small{font-size:11px;color:var(--muted);line-height:1.45}
+button{border:1px solid #2b4969;border-radius:12px;background:#17304c;color:white;padding:11px 13px;
+font-weight:750;font-size:13px}
+button.primary{background:var(--blue);color:#06111e;border-color:transparent}
+button.green{background:#143d2c;color:#a0f2c2;border-color:#236545}
+button.red{background:#3d1720;color:#ffabb2;border-color:#6a2a37}
+button:disabled{opacity:.42}
+input,select,textarea{width:100%;background:#081522;color:white;border:1px solid #2a405b;
+border-radius:10px;padding:10px;font-size:14px}
+label{display:block;color:var(--muted);font-size:11px;margin:8px 0 5px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.metric{background:var(--panel2);border:1px solid #1d334b;border-radius:12px;padding:10px}
+.k{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.v{font-size:17px;font-weight:850;margin-top:4px;font-variant-numeric:tabular-nums}
+canvas{display:block;width:100%;height:145px;background:#06101a;border-radius:10px}
+.plot{margin-top:10px}.plothead{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:5px}
+.controls{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:12px}
+.events{display:flex;flex-wrap:wrap;gap:7px}.events button{padding:8px 10px;font-size:12px}
+.log{max-height:180px;overflow:auto;margin-top:10px}
+.evrow{display:grid;grid-template-columns:65px 1fr;gap:7px;padding:7px 8px;border-bottom:1px solid #17304a;font-size:11px}
+.tm{color:var(--cyan);font-variant-numeric:tabular-nums}
+.warn{background:#2c2211;border:1px solid #5d4821;color:#ffd993;border-radius:12px;padding:10px;font-size:11px;line-height:1.45}
+.ok{background:#102b22;border:1px solid #245e48;color:#a9f0cb;border-radius:12px;padding:10px;font-size:11px;line-height:1.45}
+.err{background:#30151b;border:1px solid #6c2b38;color:#ffb0b7;border-radius:12px;padding:10px;font-size:11px;line-height:1.45}
+.code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px;color:#b7cae0;word-break:break-all}
+@media(max-width:800px){.grid{grid-template-columns:1fr}.metrics{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:520px){.two{grid-template-columns:1fr}.controls{grid-template-columns:1fr}canvas{height:125px}.wrap{padding:12px 9px 28px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <h1>Cross Patch Recorder</h1>
+      <div class="sub">nRF52840 · Nordic UART · CH1 + CH2 · research build</div>
+    </div>
+    <div class="badge">BLE v3</div>
+  </div>
+
+  <div class="grid">
+    <main>
+      <section class="card">
+        <div class="row">
+          <div>
+            <div class="status"><span class="dot" id="bleDot"></span><b id="bleStatus">Not connected</b></div>
+            <div class="small" id="deviceText">Open this page in Bluefy over HTTPS, then tap Connect Patch.</div>
+          </div>
+          <button class="primary" id="connectBtn">Connect Patch</button>
+        </div>
+        <div id="bleMsg" class="small" style="margin-top:10px"></div>
+      </section>
+
+      <section class="card">
+        <b>Experiment</b>
+        <div class="two">
+          <div><label>Session name</label><input id="session" value="sept_18_test"></div>
+          <div><label>Protocol</label>
+            <select id="protocol">
+              <option>Orientation</option><option>Walking</option><option>Meal / EGG</option>
+              <option>ECG / VCG</option><option>Free recording</option>
+            </select>
+          </div>
+          <div><label>Subject / trial code</label><input id="subject" value="S01_T01"></div>
+          <div><label>Per-channel sample rate</label>
+            <select id="fs"><option value="1000">1000 Hz</option><option value="500">500 Hz</option><option value="250">250 Hz</option></select>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="row"><b>Live signals</b><span class="small">display decimated; saved data are full-rate</span></div>
+        <div class="plot">
+          <div class="plothead"><span>CH1</span><span id="ch1Now">0.000</span></div>
+          <canvas id="c1"></canvas>
+        </div>
+        <div class="plot">
+          <div class="plothead"><span>CH2</span><span id="ch2Now">0.000</span></div>
+          <canvas id="c2"></canvas>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="metrics">
+          <div class="metric"><div class="k">Duration</div><div class="v" id="duration">00:00:00</div></div>
+          <div class="metric"><div class="k">Packets</div><div class="v" id="packetCount">0</div></div>
+          <div class="metric"><div class="k">Samples/ch</div><div class="v" id="sampleCount">0</div></div>
+          <div class="metric"><div class="k">Framing issues</div><div class="v" id="frameIssues">0</div></div>
+        </div>
+        <div class="controls">
+          <button class="green" id="startBtn" disabled>● Start Recording</button>
+          <button class="red" id="stopBtn" disabled>■ Stop Recording</button>
+        </div>
+        <div class="small" style="margin-top:9px">
+          “Framing issues” is not a true BLE packet-loss counter. True loss detection needs the firmware packet-sequence definition.
+        </div>
+      </section>
+    </main>
+
+    <aside>
+      <section class="card">
+        <b>Event marker</b>
+        <div class="events" style="margin-top:10px">
+          <button data-event="Patch 0°">0°</button><button data-event="Patch 45°">45°</button>
+          <button data-event="Patch 90°">90°</button><button data-event="Patch 135°">135°</button>
+          <button data-event="Sitting">Sitting</button><button data-event="Standing">Standing</button>
+          <button data-event="Walking start">Walking</button><button data-event="Walking stop">Stop walk</button>
+          <button data-event="Meal start">Meal</button><button data-event="Custom note">Custom</button>
+        </div>
+        <div class="log" id="eventLog"><div class="small">Events appear here while recording.</div></div>
+      </section>
+
+      <section class="card">
+        <b>Notes</b>
+        <textarea id="notes" rows="5" placeholder="Patch position, posture, meal, movement, observations..."></textarea>
+      </section>
+
+      <section class="card">
+        <b>Export</b>
+        <div class="small" style="margin:7px 0 10px">
+          Data CSV uses the same Python-style decoded channel units:
+          <span class="code">(uint16 − 32768) × 100 / 65536</span>.
+        </div>
+        <div class="controls">
+          <button id="csvBtn" disabled>Share / Save CSV</button>
+          <button id="metaBtn" disabled>Share / Save Metadata</button>
+        </div>
+        <div id="exportMsg" class="small" style="margin-top:9px"></div>
+      </section>
+
+      <section class="card">
+        <b>BLE protocol used</b>
+        <div class="small" style="margin-top:8px">Nordic UART Service</div>
+        <div class="code">Service: 6e400001-b5a3-f393-e0a9-e50e24dcca9e</div>
+        <div class="code">TX notify: 6e400003-b5a3-f393-e0a9-e50e24dcca9e</div>
+        <div class="small" style="margin-top:8px">Expected frame: 200 bytes = 2 header + 196 data + 2 trailer.</div>
+        <div class="small">Data: 98 little-endian uint16 values alternating CH1, CH2 → 49 samples/channel.</div>
+      </section>
+
+      <section class="warn">
+        First BLE test: record only 10–30 seconds. Confirm CH1/CH2 waveforms and CSV values before attempting long experiments.
+      </section>
+    </aside>
+  </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+const NUS_SERVICE = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
+const NUS_TX      = '6e400003-b5a3-f393-e0a9-e50e24dcca9e';
+const FRAME_BYTES = 200;
+const DATA_OFFSET = 2;
+const VALUES_PER_FRAME = 98;
+const SAMPLES_PER_CHANNEL_PER_FRAME = 49;
+const PYTHON_GAIN = 100.0;
+
+const $ = id => document.getElementById(id);
+let device=null, server=null, txChar=null;
+let connected=false, recording=false;
+let rxBuffer = new Uint8Array(0);
+let packetCount=0, sampleCount=0, frameIssues=0;
+let startWall=0, timer=null;
+let rows=[], events=[];
+let display1=Array(520).fill(0), display2=Array(520).fill(0);
+let displayCounter=0;
+
+function setMsg(msg, kind='small'){
+  const el=$('bleMsg'); el.className=kind; el.textContent=msg;
+}
+function safeName(s){
+  return (s||'session').trim().replace(/[^a-zA-Z0-9_-]+/g,'_').replace(/^_+|_+$/g,'') || 'session';
+}
+function fmt(ms){
+  let s=Math.max(0,Math.floor(ms/1000));
+  const h=String(Math.floor(s/3600)).padStart(2,'0'); s%=3600;
+  const m=String(Math.floor(s/60)).padStart(2,'0');
+  const ss=String(s%60).padStart(2,'0');
+  return `${h}:${m}:${ss}`;
+}
+function refreshCounters(){
+  $('packetCount').textContent=packetCount.toLocaleString();
+  $('sampleCount').textContent=sampleCount.toLocaleString();
+  $('frameIssues').textContent=frameIssues.toLocaleString();
+}
+function setConnected(on, name=''){
+  connected=on;
+  $('bleDot').classList.toggle('on',on);
+  $('bleStatus').textContent=on ? 'Connected' : 'Not connected';
+  $('deviceText').textContent=on ? (name || 'Cross Patch') : 'Open this page in Bluefy over HTTPS, then tap Connect Patch.';
+  $('connectBtn').textContent=on ? 'Disconnect' : 'Connect Patch';
+  $('startBtn').disabled=!on || recording;
+}
+async function connect(){
+  if(connected){ disconnect(); return; }
+  if(!navigator.bluetooth){
+    setMsg('Web Bluetooth is not available in this browser. Open the hosted HTTPS page inside Bluefy.', 'err');
+    return;
+  }
+  try{
+    setMsg('Opening Bluetooth device picker…');
+    device = await navigator.bluetooth.requestDevice({
+      filters: [{services:[NUS_SERVICE]}],
+      optionalServices: [NUS_SERVICE]
+    });
+    device.addEventListener('gattserverdisconnected', onDisconnected);
+    setMsg('Connecting to GATT…');
+    server = await device.gatt.connect();
+    const service = await server.getPrimaryService(NUS_SERVICE);
+    txChar = await service.getCharacteristic(NUS_TX);
+    await txChar.startNotifications();
+    txChar.addEventListener('characteristicvaluechanged', onNotify);
+    rxBuffer = new Uint8Array(0);
+    setConnected(true, device.name || 'nRF52840');
+    setMsg('BLE notifications started.', 'ok');
+  }catch(err){
+    setConnected(false);
+    setMsg('Connect failed: ' + (err?.message || String(err)), 'err');
+  }
+}
+function disconnect(){
+  try{ if(txChar) txChar.removeEventListener('characteristicvaluechanged', onNotify); }catch(e){}
+  try{ if(device?.gatt?.connected) device.gatt.disconnect(); }catch(e){}
+  if(recording) stopRecording();
+  txChar=null; server=null; device=null;
+  setConnected(false);
+  setMsg('Disconnected.');
+}
+function onDisconnected(){
+  if(recording) stopRecording();
+  txChar=null; server=null;
+  setConnected(false);
+  setMsg('Patch disconnected.', 'err');
+}
+function appendBytes(a,b){
+  const out=new Uint8Array(a.length+b.length); out.set(a,0); out.set(b,a.length); return out;
+}
+function onNotify(ev){
+  const dv=ev.target.value;
+  const bytes=new Uint8Array(dv.buffer, dv.byteOffset, dv.byteLength);
+
+  // Most firmware sends one 200-byte NUS frame per notification.
+  // The accumulator also handles fragmented/combined notifications.
+  rxBuffer = appendBytes(rxBuffer, bytes);
+
+  while(rxBuffer.length >= FRAME_BYTES){
+    const frame = rxBuffer.slice(0, FRAME_BYTES);
+    rxBuffer = rxBuffer.slice(FRAME_BYTES);
+    decodeFrame(frame);
+  }
+
+  // If notifications repeatedly arrive at unusual lengths, the accumulator
+  // still reconstructs frames. We only count obviously runaway residual data.
+  if(rxBuffer.length > FRAME_BYTES*3){
+    frameIssues++;
+    rxBuffer = new Uint8Array(0);
+    refreshCounters();
+  }
+}
+function decodeFrame(frame){
+  if(frame.length !== FRAME_BYTES){ frameIssues++; refreshCounters(); return; }
+  packetCount++;
+
+  const fs = Number($('fs').value) || 1000;
+  const data = new DataView(frame.buffer, frame.byteOffset, frame.byteLength);
+
+  let latest1=0, latest2=0;
+  for(let i=0;i<SAMPLES_PER_CHANNEL_PER_FRAME;i++){
+    const off = DATA_OFFSET + i*4;
+    const u1 = data.getUint16(off, true);
+    const u2 = data.getUint16(off+2, true);
+
+    // Match the existing Python decoder.
+    const ch1 = (u1 - 32768) * PYTHON_GAIN / 65536.0;
+    const ch2 = (u2 - 32768) * PYTHON_GAIN / 65536.0;
+
+    latest1=ch1; latest2=ch2;
+
+    // Full-rate recording. Timebase is derived from the known per-channel fs.
+    if(recording){
+      const t = sampleCount / fs;
+      rows.push(`${t.toFixed(6)},${ch1.toFixed(8)},${ch2.toFixed(8)},${packetCount}`);
+      sampleCount++;
+    }
+
+    // Decimate only the on-screen display.
+    displayCounter++;
+    if(displayCounter % 8 === 0){
+      display1.push(ch1); display1.shift();
+      display2.push(ch2); display2.shift();
+    }
+  }
+
+  $('ch1Now').textContent = latest1.toFixed(4);
+  $('ch2Now').textContent = latest2.toFixed(4);
+  refreshCounters();
+  drawAll();
+}
+function startRecording(){
+  if(!connected || recording) return;
+  recording=true;
+  packetCount=0; sampleCount=0; frameIssues=0; rows=[]; events=[];
+  startWall=Date.now();
+  $('stopBtn').disabled=false;
+  $('startBtn').disabled=true;
+  $('csvBtn').disabled=true; $('metaBtn').disabled=true;
+  $('eventLog').innerHTML='';
+  addEvent('Recording started');
+  timer=setInterval(()=> $('duration').textContent=fmt(Date.now()-startWall), 250);
+  refreshCounters();
+  setMsg('Recording full-rate CH1/CH2 data.', 'ok');
+}
+function stopRecording(){
+  if(!recording) return;
+  addEvent('Recording stopped');
+  recording=false;
+  clearInterval(timer); timer=null;
+  $('startBtn').disabled=!connected;
+  $('stopBtn').disabled=true;
+  $('csvBtn').disabled=rows.length===0;
+  $('metaBtn').disabled=false;
+  setMsg(`Recording stopped. ${sampleCount.toLocaleString()} samples/channel stored in this browser session.`, 'ok');
+}
+function addEvent(name){
+  if(!recording && name!=='Recording stopped') return;
+  if(name==='Custom note'){
+    const x=prompt('Event note:');
+    if(!x) return;
+    name=x;
+  }
+  const t=(Date.now()-startWall)/1000;
+  events.push({time_sec:+Math.max(0,t).toFixed(3),event:name});
+  const row=document.createElement('div'); row.className='evrow';
+  row.innerHTML=`<span class="tm">${fmt(t*1000)}</span><span>${escapeHtml(name)}</span>`;
+  $('eventLog').appendChild(row);
+  $('eventLog').scrollTop=$('eventLog').scrollHeight;
+}
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+function draw(id,arr,color){
+  const c=$(id), d=window.devicePixelRatio||1, r=c.getBoundingClientRect();
+  c.width=Math.max(1,Math.round(r.width*d)); c.height=Math.max(1,Math.round(r.height*d));
+  const x=c.getContext('2d'), w=c.width,h=c.height;
+  x.clearRect(0,0,w,h);
+  x.strokeStyle='rgba(255,255,255,.07)'; x.lineWidth=1*d;
+  for(let i=1;i<5;i++){const y=h*i/5;x.beginPath();x.moveTo(0,y);x.lineTo(w,y);x.stroke();}
+  let max=Math.max(0.1,...arr.map(v=>Math.abs(v)))*1.12;
+  x.strokeStyle=color; x.lineWidth=1.3*d; x.beginPath();
+  arr.forEach((v,i)=>{
+    const xx=i/(arr.length-1)*w, yy=h/2-(v/max)*h*.42;
+    i ? x.lineTo(xx,yy) : x.moveTo(xx,yy);
+  });
+  x.stroke();
+}
+function drawAll(){ draw('c1',display1,'#55a6ff'); draw('c2',display2,'#5ce1e6'); }
+
+async function shareOrDownload(filename, blob, label){
+  const file = new File([blob], filename, {type:blob.type || 'application/octet-stream'});
+  try{
+    if(navigator.share && navigator.canShare && navigator.canShare({files:[file]})){
+      await navigator.share({files:[file], title:filename});
+      $('exportMsg').textContent=`${label}: Share sheet opened. Choose Save to Files.`;
+      return;
+    }
+  }catch(err){
+    if(err?.name==='AbortError') return;
+  }
+  try{
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob); a.download=filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+    $('exportMsg').textContent=`${label}: browser download requested.`;
+  }catch(err){
+    $('exportMsg').textContent=`${label} export failed: ${err?.message || err}`;
+  }
+}
+function exportCsv(){
+  const name=safeName($('session').value);
+  const header='time_sec,CH1,CH2,packet_index\n';
+  const blob=new Blob([header, rows.join('\n'), '\n'], {type:'text/csv'});
+  shareOrDownload(`${name}_D1.csv`, blob, 'CSV');
+}
+function exportMeta(){
+  const name=safeName($('session').value);
+  const meta={
+    app:'Cross Patch Recorder BLE v3',
+    session:$('session').value,
+    protocol:$('protocol').value,
+    subject_trial:$('subject').value,
+    nominal_sample_rate_hz_per_channel:Number($('fs').value),
+    ble_service_uuid:NUS_SERVICE,
+    ble_tx_notify_uuid:NUS_TX,
+    expected_frame_bytes:FRAME_BYTES,
+    frame_layout:'2 header + 196 data + 2 trailer',
+    payload_layout:'98 uint16 little-endian alternating CH1/CH2 = 49 samples/channel',
+    decoder:'(uint16 - 32768) * 100 / 65536',
+    packets_received:packetCount,
+    samples_per_channel:sampleCount,
+    framing_issues:frameIssues,
+    note_about_packet_loss:'True dropped-packet detection is not implemented because the firmware packet-sequence meaning has not been verified.',
+    notes:$('notes').value,
+    events
+  };
+  const blob=new Blob([JSON.stringify(meta,null,2)],{type:'application/json'});
+  shareOrDownload(`${name}_metadata.json`, blob, 'Metadata');
+}
+
+$('connectBtn').addEventListener('click',connect);
+$('startBtn').addEventListener('click',startRecording);
+$('stopBtn').addEventListener('click',stopRecording);
+$('csvBtn').addEventListener('click',exportCsv);
+$('metaBtn').addEventListener('click',exportMeta);
+document.querySelectorAll('[data-event]').forEach(b=>b.addEventListener('click',()=>addEvent(b.dataset.event)));
+window.addEventListener('resize',drawAll);
+drawAll();
+
+})();
+</script>
+</body>
+</html>
