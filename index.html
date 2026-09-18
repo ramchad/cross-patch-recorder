@@ -72,7 +72,7 @@ background:rgba(8,18,31,.96);backdrop-filter:blur(14px);border-top:1px solid #21
       <div class="logo">XY</div>
       <div><div class="title">Cross Patch Recorder</div><div class="subtitle">Long-recording BLE research build</div></div>
     </div>
-    <div class="pill">v7 · voltage + smart filenames</div>
+    <div class="pill">v7.1 · fixed BLE button</div>
   </div>
 
   <section id="recordSec" class="section active">
@@ -140,6 +140,30 @@ background:rgba(8,18,31,.96);backdrop-filter:blur(14px);border-top:1px solid #21
           <label>Session name</label><input id="session" value="sept_18_long_test">
           <label>Protocol</label>
           <select id="protocol"><option>Orientation</option><option>Walking</option><option>Meal / EGG</option><option>ECG / VCG</option><option>Free recording</option></select>
+
+          <label>Condition</label>
+          <select id="condition">
+            <option>Baseline</option>
+            <option>Rest</option>
+            <option>Walking</option>
+            <option>Post-walk</option>
+            <option>Fasting</option>
+            <option>Meal</option>
+            <option>Post-meal</option>
+            <option>Custom</option>
+          </select>
+
+          <label>Patch orientation</label>
+          <select id="orientation">
+            <option>0deg</option><option>45deg</option><option>90deg</option><option>135deg</option>
+            <option>180deg</option><option>270deg</option><option>Not-specified</option>
+          </select>
+
+          <label>Posture</label>
+          <select id="posture">
+            <option>Supine</option><option>Sitting</option><option>Standing</option><option>Walking</option><option>Other</option>
+          </select>
+
           <label>Subject / trial</label><input id="subject" value="S01_T01">
           <label>Per-channel sample rate</label>
           <select id="fs"><option value="1000">1000 Hz</option><option value="500">500 Hz</option><option value="250">250 Hz</option></select>
@@ -231,14 +255,18 @@ function stamp(){
   const pad=n=>String(n).padStart(2,'0');
   return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
 }
+function val(id,fallback=''){
+  const el=$(id);
+  return el ? (el.value ?? fallback) : fallback;
+}
 function setupParts(){
   return [
-    safeName($('subject').value),
-    safeName($('session').value),
-    safeName($('protocol').value),
-    safeName($('condition').value),
-    safeName($('orientation').value),
-    safeName($('posture').value)
+    safeName(val('subject','SXX_TXX')),
+    safeName(val('session','recording')),
+    safeName(val('protocol','Free_recording')),
+    safeName(val('condition','Unspecified')),
+    safeName(val('orientation','Not-specified')),
+    safeName(val('posture','Unspecified'))
   ].filter(Boolean);
 }
 function baseFilename(){
@@ -247,7 +275,7 @@ function baseFilename(){
 function updateSetupPreview(){
   const el=$('setupPreview');
   if(!el) return;
-  el.textContent=`${$('subject').value} | ${$('session').value} | ${$('protocol').value} | ${$('condition').value} | ${$('orientation').value} | ${$('posture').value}`;
+  el.textContent=`${val('subject')} | ${val('session')} | ${val('protocol')} | ${val('condition')} | ${val('orientation')} | ${val('posture')}`;
 }
 function fmt(ms){let s=Math.max(0,Math.floor(ms/1000));const h=String(Math.floor(s/3600)).padStart(2,'0');s%=3600;const m=String(Math.floor(s/60)).padStart(2,'0'),ss=String(s%60).padStart(2,'0');return `${h}:${m}:${ss}`}
 function setMsg(msg,cls='small'){const e=$('bleMsg');e.className=cls;e.textContent=msg}
@@ -423,7 +451,7 @@ async function refreshFileList(){
   })
 }
 async function exportMeta(){
-  const meta={app:'Cross Patch Recorder BLE v7',session:$('session').value,protocol:$('protocol').value,subject_trial:$('subject').value,
+  const meta={app:'Cross Patch Recorder BLE v7.1',session:val('session'),protocol:val('protocol'),subject_trial:val('subject'),
     nominal_sample_rate_hz_per_channel:Number($('fs').value),
     ina_gain:INA_GAIN,
     python_gain:PYTHON_GAIN,
@@ -446,8 +474,10 @@ $('autoZoomBtn').onclick=()=>{
   drawAll();
 };
 ['session','protocol','condition','orientation','posture','subject'].forEach(id=>{
-  $(id).addEventListener('input',updateSetupPreview);
-  $(id).addEventListener('change',updateSetupPreview);
+  const el=$(id);
+  if(!el) return;
+  el.addEventListener('input',updateSetupPreview);
+  el.addEventListener('change',updateSetupPreview);
 });
 updateSetupPreview();
 
