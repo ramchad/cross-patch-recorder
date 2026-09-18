@@ -80,6 +80,24 @@ background:rgba(8,18,31,.96);backdrop-filter:blur(14px);border-top:1px solid #21
   .polarWrap{grid-template-columns:1fr;justify-items:center}
 }
 
+
+.signalGroup{margin-top:14px}
+.signalGroupTitle{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin-bottom:7px}
+.signalGroupTitle h3{font-size:13px;margin:0}.signalGroupTitle span{font-size:10px;color:var(--muted)}
+.signalcard.compact{padding:9px}.signalcard.compact canvas{height:125px}
+.signalHint{font-size:10px;color:var(--muted);line-height:1.45;margin-top:8px}
+.bioGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin-top:10px}
+.bioCard{background:#091624;border:1px solid #1b3048;border-radius:14px;padding:11px}
+.bioLabel{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.bioValue{font-size:23px;font-weight:850;margin-top:4px;font-variant-numeric:tabular-nums}
+.bioUnit{font-size:10px;color:var(--muted);margin-left:3px}.bioWide{grid-column:1/-1}
+.polarWrap{display:grid;grid-template-columns:170px 1fr;gap:12px;align-items:center;margin-top:10px}
+#eggPolar{width:170px;height:170px;background:#06101a;border-radius:16px}
+.statusTag{display:inline-block;padding:5px 8px;border-radius:999px;border:1px solid #2b4664;background:#0b192a;color:#bfd1e5;font-size:10px}
+.statusTag.good{border-color:#246046;background:#102b22;color:#a9f0cb}
+.statusTag.warn{border-color:#6a5525;background:#2b2212;color:#ffd991}
+@media(max-width:520px){.polarWrap{grid-template-columns:1fr;justify-items:center}}
+
 </style>
 </head>
 <body>
@@ -89,7 +107,7 @@ background:rgba(8,18,31,.96);backdrop-filter:blur(14px);border-top:1px solid #21
       <div class="logo">XY</div>
       <div><div class="title">Cross Patch Recorder</div><div class="subtitle">Long-recording BLE research build</div></div>
     </div>
-    <div class="pill">v8.1 · fixed auto zoom</div>
+    <div class="pill">v9.2 · 4-min EGG view</div>
   </div>
 
   <section id="recordSec" class="section active">
@@ -106,36 +124,7 @@ background:rgba(8,18,31,.96);backdrop-filter:blur(14px);border-top:1px solid #21
           <div id="bleMsg" class="small" style="margin-top:9px"></div>
         </div>
 
-        <div class="card">
-          <div class="row">
-      <h2>Live signals</h2>
-      <div style="display:flex;align-items:center;gap:8px">
-        <span class="small">display only · stored full-rate · auto zoom follows baseline</span>
-        <button id="autoZoomBtn" class="secondary" style="padding:7px 9px;font-size:11px">Auto Zoom: ON</button>
-      </div>
-    </div>
-          <div class="signalcard">
-      <div class="signalhead"><span>CH1</span><span><span id="ch1Now">0.0000</span> mV · span ±<span id="scale1">0.100</span> mV</span></div>
-      <div class="plotwrap">
-        <div class="yaxis">
-          <div class="ylab">Voltage (mV)</div>
-          <div class="yticks"><span id="y1p">0.100</span><span>0</span><span id="y1n">-0.100</span></div>
-        </div>
-        <canvas id="c1"></canvas>
-      </div>
-    </div>
-          <div class="signalcard">
-      <div class="signalhead"><span>CH2</span><span><span id="ch2Now">0.0000</span> mV · span ±<span id="scale2">0.100</span> mV</span></div>
-      <div class="plotwrap">
-        <div class="yaxis">
-          <div class="ylab">Voltage (mV)</div>
-          <div class="yticks"><span id="y2p">0.100</span><span>0</span><span id="y2n">-0.100</span></div>
-        </div>
-        <canvas id="c2"></canvas>
-      </div>
-    </div>
-        </div>
-      </div>
+        
 
       <div>
         <div class="card">
@@ -148,7 +137,7 @@ background:rgba(8,18,31,.96);backdrop-filter:blur(14px);border-top:1px solid #21
           </div>
           <div class="actions"><button id="startBtn" class="green" disabled>● Start</button><button id="stopBtn" class="red" disabled>■ Stop</button></div>
           <div class="notice warn" style="margin-top:10px">
-            For 30–60 min recording: keep Bluefy in the foreground and keep the iPhone screen awake. Do not lock the phone or switch apps for long periods.
+            For 30–60 min recording: keep Bluefy in the foreground and keep the iPhone screen awake. CSV part length is independent of the 4-minute EGG visualization.
           </div>
         </div>
 
@@ -184,8 +173,19 @@ background:rgba(8,18,31,.96);backdrop-filter:blur(14px);border-top:1px solid #21
           <label>Subject / trial</label><input id="subject" value="S01_T01">
           <label>Per-channel sample rate</label>
           <select id="fs"><option value="1000">1000 Hz</option><option value="500">500 Hz</option><option value="250">250 Hz</option></select>
-          <label>Auto-save part length</label>
-          <select id="chunkMin"><option value="5" selected>5 minutes</option><option value="10">10 minutes</option></select>
+          <label>CSV part length (storage only)</label>
+          <select id="chunkMin">
+            <option value="1">1 minute</option>
+            <option value="2">2 minutes</option>
+            <option value="4">4 minutes</option>
+            <option value="5" selected>5 minutes</option>
+            <option value="10">10 minutes</option>
+            <option value="15">15 minutes</option>
+            <option value="30">30 minutes</option>
+          </select>
+          <div class="small" style="margin-top:6px">
+            This controls only how often the raw CSV is split. It does not change the live signal windows.
+          </div>
         </div>
       </div>
     </div>
@@ -195,58 +195,77 @@ background:rgba(8,18,31,.96);backdrop-filter:blur(14px);border-top:1px solid #21
   <section id="eggSec" class="section">
     <div class="card">
       <div class="row">
-        <h2>Live EGG preview</h2>
-        <span id="eggStatus" class="statusTag warn">Collecting</span>
-      </div>
-      <div class="small" style="margin-top:6px">
-        Rolling 3-minute estimate from the simultaneous CH1/CH2 signal. This is a live preview; MATLAB remains the final analysis.
+        <div>
+          <h2>Multi-scale live signals</h2>
+          <div class="small" style="margin-top:4px">Six views from the same simultaneous CH1 / CH2 recording.</div>
+        </div>
+        <button id="autoZoomBtn" class="secondary" style="padding:7px 9px;font-size:11px">Auto Zoom: ON</button>
       </div>
 
+      <div class="signalGroup">
+        <div class="signalGroupTitle"><h3>Raw / ECG-scale</h3><span>10 s window</span></div>
+
+        <div class="signalcard compact">
+          <div class="signalhead"><span>CH1 raw</span><span><span id="ch1Now">0.0000</span> mV · span ±<span id="scale1">0.100</span> mV</span></div>
+          <div class="plotwrap"><div class="yaxis"><div class="ylab">Voltage (mV)</div><div class="yticks"><span id="y1p">0.100</span><span id="y1c">0.000</span><span id="y1n">-0.100</span></div></div><canvas id="c1"></canvas></div>
+        </div>
+
+        <div class="signalcard compact">
+          <div class="signalhead"><span>CH2 raw</span><span><span id="ch2Now">0.0000</span> mV · span ±<span id="scale2">0.100</span> mV</span></div>
+          <div class="plotwrap"><div class="yaxis"><div class="ylab">Voltage (mV)</div><div class="yticks"><span id="y2p">0.100</span><span id="y2c">0.000</span><span id="y2n">-0.100</span></div></div><canvas id="c2"></canvas></div>
+        </div>
+        <div class="signalHint">Use these to check ECG visibility, motion/contact artifact, spikes and baseline changes.</div>
+      </div>
+
+      <div class="signalGroup">
+        <div class="signalGroupTitle"><h3>Respiration-related component</h3><span>90 s window · ~0.1–0.5 Hz</span></div>
+
+        <div class="signalcard compact">
+          <div class="signalhead"><span>CH1 respiration-related</span><span>span ±<span id="respScale1">0.050</span> mV</span></div>
+          <div class="plotwrap"><div class="yaxis"><div class="ylab">Voltage (mV)</div><div class="yticks"><span id="respY1p">0.050</span><span id="respY1c">0.000</span><span id="respY1n">-0.050</span></div></div><canvas id="resp1"></canvas></div>
+        </div>
+
+        <div class="signalcard compact">
+          <div class="signalhead"><span>CH2 respiration-related</span><span>span ±<span id="respScale2">0.050</span> mV</span></div>
+          <div class="plotwrap"><div class="yaxis"><div class="ylab">Voltage (mV)</div><div class="yticks"><span id="respY2p">0.050</span><span id="respY2c">0.000</span><span id="respY2n">-0.050</span></div></div><canvas id="resp2"></canvas></div>
+        </div>
+        <div class="signalHint">This is a respiration-related preview, not confirmed respiration until validated against a respiratory reference.</div>
+      </div>
+
+      <div class="signalGroup">
+        <div class="signalGroupTitle"><h3>Gastric / EGG component</h3><span>4 min visualization · 2–4 CPM</span></div>
+
+        <div class="signalcard compact">
+          <div class="signalhead"><span>CH1 gastric</span><span>span ±<span id="eggScale1">0.050</span> mV</span></div>
+          <div class="plotwrap"><div class="yaxis"><div class="ylab">Voltage (mV)</div><div class="yticks"><span id="eggY1p">0.050</span><span id="eggY1c">0.000</span><span id="eggY1n">-0.050</span></div></div><canvas id="gastric1"></canvas></div>
+        </div>
+
+        <div class="signalcard compact">
+          <div class="signalhead"><span>CH2 gastric</span><span>span ±<span id="eggScale2">0.050</span> mV</span></div>
+          <div class="plotwrap"><div class="yaxis"><div class="ylab">Voltage (mV)</div><div class="yticks"><span id="eggY2p">0.050</span><span id="eggY2c">0.000</span><span id="eggY2n">-0.050</span></div></div><canvas id="gastric2"></canvas></div>
+        </div>
+        <div class="signalHint">These filtered traces are display-only. The CSV still stores the full-rate raw data.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row"><h2>Live EGG preview</h2><span id="eggStatus" class="statusTag warn">Collecting</span></div>
+      <div class="small" style="margin-top:6px">Rolling 3-minute estimate. MATLAB remains the final analysis.</div>
+
       <div class="bioGrid">
-        <div class="bioCard">
-          <div class="bioLabel">EGG frequency</div>
-          <div class="bioValue"><span id="eggFreq">--</span><span class="bioUnit">CPM</span></div>
-        </div>
-        <div class="bioCard">
-          <div class="bioLabel">EGG SNR</div>
-          <div class="bioValue"><span id="eggSnr">--</span><span class="bioUnit">dB</span></div>
-        </div>
-        <div class="bioCard">
-          <div class="bioLabel">CH1 amplitude</div>
-          <div class="bioValue"><span id="eggAmp1">--</span><span class="bioUnit">mV</span></div>
-        </div>
-        <div class="bioCard">
-          <div class="bioLabel">CH2 amplitude</div>
-          <div class="bioValue"><span id="eggAmp2">--</span><span class="bioUnit">mV</span></div>
-        </div>
-        <div class="bioCard bioWide">
-          <div class="bioLabel">Patch-local principal EGG direction</div>
-          <div class="bioValue"><span id="eggAngle">--</span><span class="bioUnit">°</span></div>
-        </div>
+        <div class="bioCard"><div class="bioLabel">EGG frequency</div><div class="bioValue"><span id="eggFreq">--</span><span class="bioUnit">CPM</span></div></div>
+        <div class="bioCard"><div class="bioLabel">EGG SNR</div><div class="bioValue"><span id="eggSnr">--</span><span class="bioUnit">dB</span></div></div>
+        <div class="bioCard"><div class="bioLabel">CH1 EGG amplitude</div><div class="bioValue"><span id="eggAmp1">--</span><span class="bioUnit">mV</span></div></div>
+        <div class="bioCard"><div class="bioLabel">CH2 EGG amplitude</div><div class="bioValue"><span id="eggAmp2">--</span><span class="bioUnit">mV</span></div></div>
+        <div class="bioCard bioWide"><div class="bioLabel">Patch-local principal EGG direction</div><div class="bioValue"><span id="eggAngle">--</span><span class="bioUnit">°</span></div></div>
       </div>
 
       <div class="polarWrap">
         <canvas id="eggPolar" width="340" height="340"></canvas>
         <div>
-          <div class="small">
-            The arrow shows the dominant EGG axis in the <b>patch coordinate system</b>.
-            It is an axis (0–180°), not yet an anatomically validated gastric propagation direction.
-          </div>
-          <div class="notice" style="margin-top:10px">
-            Physical patch orientation: <b id="physicalOrientationText">0deg</b><br>
-            Compare this field with the measured patch-local angle during rotation experiments.
-          </div>
+          <div class="small">The arrow is the dominant EGG axis in patch coordinates (0–180°). It is not yet an anatomically validated gastric propagation direction.</div>
+          <div class="notice" style="margin-top:10px">Physical patch orientation: <b id="physicalOrientationText">0deg</b></div>
         </div>
-      </div>
-    </div>
-
-    <div class="card">
-      <h2>How the live estimate is calculated</h2>
-      <div class="small" style="margin-top:8px">
-        The app averages the full-rate data to 10 Hz, uses the most recent 3 minutes,
-        searches 2–4 CPM for the strongest combined CH1/CH2 sinusoidal component,
-        estimates each channel amplitude from that component, and calculates the principal
-        XY axis from the reconstructed simultaneous cycle.
       </div>
     </div>
   </section>
@@ -294,14 +313,17 @@ background:rgba(8,18,31,.96);backdrop-filter:blur(14px);border-top:1px solid #21
       <div id="exportMsg" class="small" style="margin-top:10px"></div>
     </div>
     <div class="notice">
-      For a 60-minute session with 5-minute auto-save, expect about 12 CSV parts. Each filename already includes subject, recording, protocol, condition, orientation, posture, date/time, and part number. The setup JSON is optional. MATLAB can concatenate them in order.
+      Each CSV part continues the same global time and sample numbering. The next file does <b>not</b> restart at 0 s. This lets MATLAB join part01, part02, part03, etc. into one continuous recording.
+    </div>
+    <div class="notice" style="margin-top:10px">
+      For a 60-minute session with 4-minute auto-save, expect about 12 CSV parts. Each filename already includes subject, recording, protocol, condition, orientation, posture, date/time, and part number. The setup JSON is optional. MATLAB can concatenate them in order.
     </div>
   </section>
 </div>
 
 <nav class="tabs">
   <button class="tab active" data-tab="recordSec">Record</button>
-  <button class="tab" data-tab="eggSec">EGG</button>
+  <button class="tab" data-tab="eggSec">Signals</button>
   <button class="tab" data-tab="eventsSec">Events</button>
   <button class="tab" data-tab="detailsSec">Details</button>
   <button class="tab" data-tab="exportSec">Export</button>
@@ -323,12 +345,29 @@ let device=null,server=null,txChar=null,connected=false,recording=false;
 let rxBuffer=new Uint8Array(0),packetCount=0,sampleCount=0,frameIssues=0;
 let startWall=0,timer=null,events=[],sessionId='',partIndex=1,partStartSample=0;
 let lineBuffer=[],bufferChars=0,flushBusy=false;
-let d1=Array(520).fill(0),d2=Array(520).fill(0),dispCounter=0;
+const RAW_DISPLAY_HZ=50, RAW_WINDOW_SEC=10;
+let d1=Array(RAW_DISPLAY_HZ*RAW_WINDOW_SEC).fill(0);
+let d2=Array(RAW_DISPLAY_HZ*RAW_WINDOW_SEC).fill(0);
+let dispCounter=0;
+
+const RESP_FS=20, RESP_DISPLAY_HZ=10, RESP_WINDOW_SEC=90;
+let resp1=Array(RESP_DISPLAY_HZ*RESP_WINDOW_SEC).fill(0);
+let resp2=Array(RESP_DISPLAY_HZ*RESP_WINDOW_SEC).fill(0);
+let respAcc1=0,respAcc2=0,respAccN=0,respDisplayCounter=0;
+
+const GASTRIC_FS=10, GASTRIC_DISPLAY_HZ=2, GASTRIC_WINDOW_SEC=240;
+let gastric1=Array(GASTRIC_DISPLAY_HZ*GASTRIC_WINDOW_SEC).fill(0);
+let gastric2=Array(GASTRIC_DISPLAY_HZ*GASTRIC_WINDOW_SEC).fill(0);
+let gastricAcc1=0,gastricAcc2=0,gastricAccN=0,gastricDisplayCounter=0;
+
+let lastDrawMs=0,drawPending=false;
 let eggSlow1=[], eggSlow2=[], eggAcc1=0, eggAcc2=0, eggAccN=0;
 const EGG_SLOW_FS=10, EGG_WINDOW_SEC=180, EGG_UPDATE_SEC=10;
 let lastEggUpdate=0;
 
 let autoZoom=true, center1=0, center2=0, span1=0.1, span2=0.1;
+let respCenter1=0,respCenter2=0,respSpan1=.05,respSpan2=.05;
+let gastricCenter1=0,gastricCenter2=0,gastricSpan1=.05,gastricSpan2=.05;
 let wakeLock=null;
 
 function safeName(s){return (s||'session').trim().replace(/[^a-zA-Z0-9_-]+/g,'_').replace(/^_+|_+$/g,'')||'session'}
@@ -386,7 +425,7 @@ async function connect(){
     txChar=await service.getCharacteristic(NUS_TX);
     await txChar.startNotifications();
     txChar.addEventListener('characteristicvaluechanged',onNotify);
-    rxBuffer=new Uint8Array(0);setConnected(true,device.name||'nRF52840');setMsg('BLE notifications started.','ok')
+    rxBuffer=new Uint8Array(0);resetMultiScaleFilters();setConnected(true,device.name||'nRF52840');setMsg('BLE notifications started.','ok')
   }catch(err){setConnected(false);setMsg('Connect failed: '+(err?.message||String(err)),'err')}
 }
 function disconnect(){
@@ -402,6 +441,74 @@ function onNotify(ev){
   rxBuffer=append(rxBuffer,bytes);
   while(rxBuffer.length>=FRAME_BYTES){const frame=rxBuffer.slice(0,FRAME_BYTES);rxBuffer=rxBuffer.slice(FRAME_BYTES);decodeFrame(frame)}
   if(rxBuffer.length>FRAME_BYTES*3){frameIssues++;rxBuffer=new Uint8Array(0);updateCounters()}
+}
+
+
+class Biquad{
+  constructor(type,fs,fc,q=.70710678){
+    this.type=type;this.fs=fs;this.fc=fc;this.q=q;
+    this.x1=this.x2=this.y1=this.y2=0;this.calc();
+  }
+  calc(){
+    const w=2*Math.PI*this.fc/this.fs,c=Math.cos(w),s=Math.sin(w),alpha=s/(2*this.q);
+    let b0,b1,b2;
+    if(this.type==='lowpass'){b0=(1-c)/2;b1=1-c;b2=(1-c)/2}
+    else{b0=(1+c)/2;b1=-(1+c);b2=(1+c)/2}
+    const a0=1+alpha,a1=-2*c,a2=1-alpha;
+    this.b0=b0/a0;this.b1=b1/a0;this.b2=b2/a0;this.a1=a1/a0;this.a2=a2/a0;
+  }
+  process(x){
+    const y=this.b0*x+this.b1*this.x1+this.b2*this.x2-this.a1*this.y1-this.a2*this.y2;
+    this.x2=this.x1;this.x1=x;this.y2=this.y1;this.y1=y;return y;
+  }
+  reset(){this.x1=this.x2=this.y1=this.y2=0}
+}
+const respHP1=new Biquad('highpass',RESP_FS,.08),respLP1=new Biquad('lowpass',RESP_FS,.60);
+const respHP2=new Biquad('highpass',RESP_FS,.08),respLP2=new Biquad('lowpass',RESP_FS,.60);
+const gastricHP1=new Biquad('highpass',GASTRIC_FS,.025),gastricLP1=new Biquad('lowpass',GASTRIC_FS,.080);
+const gastricHP2=new Biquad('highpass',GASTRIC_FS,.025),gastricLP2=new Biquad('lowpass',GASTRIC_FS,.080);
+
+function resetMultiScaleFilters(){
+  [respHP1,respLP1,respHP2,respLP2,gastricHP1,gastricLP1,gastricHP2,gastricLP2].forEach(f=>f.reset());
+  respAcc1=respAcc2=0;respAccN=0;respDisplayCounter=0;
+  gastricAcc1=gastricAcc2=0;gastricAccN=0;gastricDisplayCounter=0;
+}
+function feedMultiScale(ch1,ch2,fs){
+  dispCounter++;
+  const rawBlock=Math.max(1,Math.round(fs/RAW_DISPLAY_HZ));
+  if(dispCounter>=rawBlock){
+    d1.push(ch1);d1.shift();d2.push(ch2);d2.shift();dispCounter=0;
+  }
+
+  respAcc1+=ch1;respAcc2+=ch2;respAccN++;
+  const respBlock=Math.max(1,Math.round(fs/RESP_FS));
+  if(respAccN>=respBlock){
+    const a=respAcc1/respAccN,b=respAcc2/respAccN;
+    respAcc1=respAcc2=0;respAccN=0;
+    const r1=respLP1.process(respHP1.process(a)),r2=respLP2.process(respHP2.process(b));
+    respDisplayCounter++;
+    if(respDisplayCounter>=Math.max(1,Math.round(RESP_FS/RESP_DISPLAY_HZ))){
+      resp1.push(r1);resp1.shift();resp2.push(r2);resp2.shift();respDisplayCounter=0;
+    }
+  }
+
+  gastricAcc1+=ch1;gastricAcc2+=ch2;gastricAccN++;
+  const gBlock=Math.max(1,Math.round(fs/GASTRIC_FS));
+  if(gastricAccN>=gBlock){
+    const a=gastricAcc1/gastricAccN,b=gastricAcc2/gastricAccN;
+    gastricAcc1=gastricAcc2=0;gastricAccN=0;
+    const g1=gastricLP1.process(gastricHP1.process(a)),g2=gastricLP2.process(gastricHP2.process(b));
+    gastricDisplayCounter++;
+    if(gastricDisplayCounter>=Math.max(1,Math.round(GASTRIC_FS/GASTRIC_DISPLAY_HZ))){
+      gastric1.push(g1);gastric1.shift();gastric2.push(g2);gastric2.shift();gastricDisplayCounter=0;
+    }
+  }
+}
+function scheduleDraw(){
+  const now=performance.now();
+  if(drawPending||now-lastDrawMs<180)return;
+  drawPending=true;
+  requestAnimationFrame(()=>{drawPending=false;lastDrawMs=performance.now();drawAll()});
 }
 
 function resetEggPreview(){
@@ -561,17 +668,18 @@ function decodeFrame(frame){
     const ch1=ch1_csv*CSV_TO_INPUT_MV, ch2=ch2_csv*CSV_TO_INPUT_MV;
     l1=ch1;l2=ch2;
     feedEggSample(ch1,ch2,fs);
+    feedMultiScale(ch1,ch2,fs);
     if(recording){
       const t=sampleCount/fs;
-      const line=`${t.toFixed(6)},${ch1_csv.toFixed(8)},${ch2_csv.toFixed(8)},${ch1.toFixed(8)},${ch2.toFixed(8)},${packetCount}\n`;
+      const line=`${t.toFixed(6)},${sampleCount},${ch1_csv.toFixed(8)},${ch2_csv.toFixed(8)},${ch1.toFixed(8)},${ch2.toFixed(8)},${packetCount},${partIndex}\n`;
       lineBuffer.push(line);bufferChars+=line.length;sampleCount++;
       const chunkSamples=(Number($('chunkMin').value)||5)*60*fs;
       if(sampleCount-partStartSample>=chunkSamples) finalizePart(false);
       else if(bufferChars>1_000_000) flushBuffer();
     }
-    dispCounter++;if(dispCounter%8===0){d1.push(ch1);d1.shift();d2.push(ch2);d2.shift()}
+    
   }
-  $('ch1Now').textContent=l1.toFixed(4);$('ch2Now').textContent=l2.toFixed(4);updateCounters();drawAll()
+  $('ch1Now').textContent=l1.toFixed(4);$('ch2Now').textContent=l2.toFixed(4);updateCounters();scheduleDraw()
 }
 
 let currentPartText='';
@@ -587,12 +695,12 @@ async function finalizePart(isFinal){
   if(!currentPartText && sampleCount===partStartSample)return;
   const fs=Number($('fs').value)||1000;
   const startSec=partStartSample/fs,endSec=sampleCount/fs;
-  const header='time_sec,CH1_csv,CH2_csv,CH1_input_mV,CH2_input_mV,packet_index\n';
+  const header='time_sec,global_sample_index,CH1_csv,CH2_csv,CH1_input_mV,CH2_input_mV,packet_index,part_index\n';
   const name=`${sessionId}_part${String(partIndex).padStart(2,'0')}.csv`;
   await putPart({
     key:`${sessionId}_${String(partIndex).padStart(3,'0')}`,
     sessionId,partIndex,name,startSec,endSec,
-    sampleStart:partStartSample,sampleEnd:sampleCount,
+    sampleStart:partStartSample,sampleEnd:sampleCount-1,nextSampleIndex:sampleCount,
     text:header+currentPartText
   });
   partIndex++;partStartSample=sampleCount;currentPartText='';updateCounters();
@@ -602,7 +710,7 @@ async function finalizePart(isFinal){
 async function startRecording(){
   if(!connected||recording)return;
   await clearParts();
-  recording=true;packetCount=0;sampleCount=0;frameIssues=0;resetEggPreview();events=[];lineBuffer=[];bufferChars=0;currentPartText='';
+  recording=true;packetCount=0;sampleCount=0;frameIssues=0;resetEggPreview();resetMultiScaleFilters();events=[];lineBuffer=[];bufferChars=0;currentPartText='';
   startWall=Date.now();sessionId=baseFilename();partIndex=1;partStartSample=0;
   $('stopBtn').disabled=false;$('startBtn').disabled=true;$('metaBtn').disabled=true;$('eventLog').innerHTML='';
   addEvent('Recording started');timer=setInterval(()=>$('duration').textContent=fmt(Date.now()-startWall),250);
@@ -626,95 +734,59 @@ function addEvent(name){
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 
 function percentile(sorted,p){
-  if(!sorted.length) return 0;
-  const idx=(sorted.length-1)*p;
-  const lo=Math.floor(idx), hi=Math.ceil(idx);
-  if(lo===hi) return sorted[lo];
+  if(!sorted.length)return 0;
+  const idx=(sorted.length-1)*p,lo=Math.floor(idx),hi=Math.ceil(idx);
+  if(lo===hi)return sorted[lo];
   return sorted[lo]*(hi-idx)+sorted[hi]*(idx-lo);
 }
-function robustWindow(arr, oldCenter, oldSpan){
+function robustWindow(arr,oldCenter,oldSpan,minSpan){
   const vals=arr.filter(v=>Number.isFinite(v)).slice().sort((a,b)=>a-b);
-  if(!vals.length) return {center:oldCenter||0,span:oldSpan||0.1};
-
-  // Ignore isolated spikes when deciding the live display limits.
-  const q02=percentile(vals,0.02);
-  const q50=percentile(vals,0.50);
-  const q98=percentile(vals,0.98);
-
-  // Center around the rolling median so DC/baseline offsets do not flatten ECG.
+  if(!vals.length)return {center:oldCenter||0,span:oldSpan||minSpan};
+  const q02=percentile(vals,.02),q50=percentile(vals,.50),q98=percentile(vals,.98);
   const targetCenter=q50;
-
-  // Half-range about the median, with 30% headroom.
   let targetSpan=Math.max(Math.abs(q98-targetCenter),Math.abs(targetCenter-q02))*1.30;
-  targetSpan=Math.max(targetSpan,0.02);
-
-  if(!autoZoom){
-    return {center:oldCenter,span:Math.max(oldSpan,0.02)};
-  }
-
-  // Smooth center changes so baseline wander does not make the trace jump.
-  const center = oldCenter*0.88 + targetCenter*0.12;
-
-  // Zoom OUT quickly if signal grows, zoom IN slowly if it shrinks.
-  let span;
-  if(targetSpan>oldSpan) span=oldSpan*0.25+targetSpan*0.75;
-  else span=oldSpan*0.94+targetSpan*0.06;
-
-  return {center,span};
+  targetSpan=Math.max(targetSpan,minSpan);
+  if(!autoZoom)return {center:oldCenter,span:Math.max(oldSpan,minSpan)};
+  return {
+    center:oldCenter*.88+targetCenter*.12,
+    span:targetSpan>oldSpan ? oldSpan*.25+targetSpan*.75 : oldSpan*.94+targetSpan*.06
+  };
 }
-function draw(id,arr,color,which){
-  const c=$(id),d=window.devicePixelRatio||1,r=c.getBoundingClientRect();
-  c.width=Math.max(1,Math.round(r.width*d));
-  c.height=Math.max(1,Math.round(r.height*d));
-  const x=c.getContext('2d'),w=c.width,h=c.height;
-  x.clearRect(0,0,w,h);
-
-  x.strokeStyle='rgba(255,255,255,.06)';
-  x.lineWidth=1*d;
-  for(let i=1;i<5;i++){
-    const y=h*i/5;
-    x.beginPath();x.moveTo(0,y);x.lineTo(w,y);x.stroke();
-  }
-
-  let center,span;
-  if(which===1){
-    const win=robustWindow(arr,center1,span1);
-    center1=win.center; span1=win.span;
-    center=center1; span=span1;
-
-    $('scale1').textContent=span1.toFixed(3);
-    $('y1p').textContent=(center1+span1).toFixed(3);
-    $('y1n').textContent=(center1-span1).toFixed(3);
-  }else{
-    const win=robustWindow(arr,center2,span2);
-    center2=win.center; span2=win.span;
-    center=center2; span=span2;
-
-    $('scale2').textContent=span2.toFixed(3);
-    $('y2p').textContent=(center2+span2).toFixed(3);
-    $('y2n').textContent=(center2-span2).toFixed(3);
-  }
-
-  // Draw zero only if zero is actually inside the visible voltage range.
-  const top=center+span, bottom=center-span;
-  if(bottom<=0 && top>=0){
-    const yz=(top/(top-bottom))*h;
-    x.strokeStyle='rgba(255,255,255,.13)';
-    x.beginPath();x.moveTo(0,yz);x.lineTo(w,yz);x.stroke();
-  }
-
-  x.strokeStyle=color;
-  x.lineWidth=1.3*d;
-  x.beginPath();
+function drawScaled(id,arr,color,state){
+  const c=$(id);if(!c)return;
+  const d=window.devicePixelRatio||1,r=c.getBoundingClientRect();
+  c.width=Math.max(1,Math.round(r.width*d));c.height=Math.max(1,Math.round(r.height*d));
+  const x=c.getContext('2d'),w=c.width,h=c.height;x.clearRect(0,0,w,h);
+  x.strokeStyle='rgba(255,255,255,.06)';x.lineWidth=1*d;
+  for(let i=1;i<5;i++){const y=h*i/5;x.beginPath();x.moveTo(0,y);x.lineTo(w,y);x.stroke()}
+  const win=robustWindow(arr,state.center,state.span,state.minSpan);state.center=win.center;state.span=win.span;
+  if(state.scaleId)$(state.scaleId).textContent=state.span.toFixed(3);
+  if(state.topId)$(state.topId).textContent=(state.center+state.span).toFixed(3);
+  if(state.midId)$(state.midId).textContent=state.center.toFixed(3);
+  if(state.bottomId)$(state.bottomId).textContent=(state.center-state.span).toFixed(3);
+  x.strokeStyle=color;x.lineWidth=1.3*d;x.beginPath();
   arr.forEach((v,i)=>{
-    const xx=i/(arr.length-1)*w;
-    const norm=(v-center)/span;
-    const yy=h/2-norm*h*0.42;
+    const xx=i/(arr.length-1)*w,yy=h/2-((v-state.center)/state.span)*h*.42;
     if(i===0)x.moveTo(xx,yy);else x.lineTo(xx,yy);
   });
   x.stroke();
 }
-function drawAll(){draw('c1',d1,'#4ea1ff',1);draw('c2',d2,'#5de1e6',2)}
+const rawState1={center:0,span:.1,minSpan:.02,scaleId:'scale1',topId:'y1p',midId:'y1c',bottomId:'y1n'};
+const rawState2={center:0,span:.1,minSpan:.02,scaleId:'scale2',topId:'y2p',midId:'y2c',bottomId:'y2n'};
+const respState1={center:0,span:.05,minSpan:.005,scaleId:'respScale1',topId:'respY1p',midId:'respY1c',bottomId:'respY1n'};
+const respState2={center:0,span:.05,minSpan:.005,scaleId:'respScale2',topId:'respY2p',midId:'respY2c',bottomId:'respY2n'};
+const gastricState1={center:0,span:.05,minSpan:.002,scaleId:'eggScale1',topId:'eggY1p',midId:'eggY1c',bottomId:'eggY1n'};
+const gastricState2={center:0,span:.05,minSpan:.002,scaleId:'eggScale2',topId:'eggY2p',midId:'eggY2c',bottomId:'eggY2n'};
+function resetZoomStates(){
+  Object.assign(rawState1,{center:0,span:.1});Object.assign(rawState2,{center:0,span:.1});
+  Object.assign(respState1,{center:0,span:.05});Object.assign(respState2,{center:0,span:.05});
+  Object.assign(gastricState1,{center:0,span:.05});Object.assign(gastricState2,{center:0,span:.05});
+}
+function drawAll(){
+  drawScaled('c1',d1,'#4ea1ff',rawState1);drawScaled('c2',d2,'#5de1e6',rawState2);
+  drawScaled('resp1',resp1,'#4ea1ff',respState1);drawScaled('resp2',resp2,'#5de1e6',respState2);
+  drawScaled('gastric1',gastric1,'#4ea1ff',gastricState1);drawScaled('gastric2',gastric2,'#5de1e6',gastricState2);
+}
 
 async function shareOrDownload(filename,text,type,label){
   const blob=new Blob([text],{type}),file=new File([blob],filename,{type});
@@ -739,14 +811,14 @@ async function refreshFileList(){
   })
 }
 async function exportMeta(){
-  const meta={app:'Cross Patch Recorder BLE v8.1',session:val('session'),protocol:val('protocol'),subject_trial:val('subject'),
+  const meta={app:'Cross Patch Recorder BLE v9.2',session:val('session'),protocol:val('protocol'),subject_trial:val('subject'),
     nominal_sample_rate_hz_per_channel:Number($('fs').value),
     ina_gain:INA_GAIN,
     python_gain:PYTHON_GAIN,
     csv_to_input_mV:CSV_TO_INPUT_MV,
     auto_save_part_minutes:Number($('chunkMin').value),
     packets_received:packetCount,samples_per_channel:sampleCount,frame_issues:frameIssues,notes:$('notes').value,events,
-    guidance:'Keep all CSV parts together. Concatenate by part number for MATLAB.',
+    guidance:'Keep all CSV parts together and concatenate by part number. time_sec and global_sample_index remain continuous across parts, so no time reset occurs at a file boundary.',
     live_egg_preview_method:'3-minute rolling window, block-averaged to 10 Hz, 2-4 CPM sinusoidal search, channel amplitudes from harmonic fit, patch-local principal XY axis from reconstructed common cycle'};
   await shareOrDownload(`${sessionId || baseFilename()}_setup.json`,JSON.stringify(meta,null,2),'application/json','Setup info')
 }
@@ -759,7 +831,7 @@ async function clearSession(){
 $('autoZoomBtn').onclick=()=>{
   autoZoom=!autoZoom;
   $('autoZoomBtn').textContent='Auto Zoom: '+(autoZoom?'ON':'OFF');
-  if(autoZoom){center1=0;center2=0;span1=0.1;span2=0.1}
+  if(autoZoom)resetZoomStates();
   drawAll();
 };
 ['session','protocol','condition','orientation','posture','subject'].forEach(id=>{
@@ -775,7 +847,7 @@ $('metaBtn').onclick=exportMeta;$('clearBtn').onclick=clearSession;$('refreshPar
 document.querySelectorAll('[data-event]').forEach(b=>b.onclick=()=>addEvent(b.dataset.event));
 document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.section').forEach(x=>x.classList.remove('active'));
-  b.classList.add('active');$(b.dataset.tab).classList.add('active');if(b.dataset.tab==='exportSec')refreshFileList();if(b.dataset.tab==='eggSec')setTimeout(()=>drawEggPolar(Number($('eggAngle')?.textContent)),80);setTimeout(drawAll,60)
+  b.classList.add('active');$(b.dataset.tab).classList.add('active');if(b.dataset.tab==='exportSec')refreshFileList();if(b.dataset.tab==='eggSec')setTimeout(()=>{drawAll();drawEggPolar(Number($('eggAngle')?.textContent));},80);setTimeout(drawAll,60)
 });
 document.addEventListener('visibilitychange',async()=>{if(document.visibilityState==='visible'&&recording)await requestWakeLock()});
 window.addEventListener('resize',()=>{drawAll();drawEggPolar(Number($('eggAngle')?.textContent));});drawAll();drawEggPolar(null);refreshFileList();
