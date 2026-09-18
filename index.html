@@ -4,446 +4,462 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#07111f">
-<title>Cross Patch Recorder BLE v3</title>
+<title>Cross Patch Recorder</title>
 <style>
 :root{
-  --bg:#07111f;--panel:#0d1a2b;--panel2:#091624;--border:#243950;
-  --text:#eef5ff;--muted:#95a9bf;--blue:#55a6ff;--cyan:#5ce1e6;
-  --green:#34d399;--red:#ff7a85;--amber:#ffc46b;
+  --bg:#07111f;--panel:#0d1827;--panel2:#091624;--line:#20324a;
+  --text:#f5f8fc;--muted:#8fa3ba;--blue:#4ea1ff;--cyan:#5de1e6;
+  --green:#31d17c;--red:#ff6672;--amber:#ffc35c;
 }
 *{box-sizing:border-box}
-body{margin:0;background:linear-gradient(180deg,#07111f,#091524);color:var(--text);
+body{margin:0;background:linear-gradient(180deg,#06101d,#091422);color:var(--text);
 font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}
-.wrap{max-width:1050px;margin:auto;padding:16px 12px 36px}
-h1{font-size:21px;margin:0}.sub{font-size:12px;color:var(--muted);margin-top:4px}
-.top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:16px}
-.badge{font-size:10px;padding:6px 9px;border:1px solid #35516f;border-radius:999px;color:#cfe0f2}
-.grid{display:grid;grid-template-columns:1.45fr .85fr;gap:14px}
-.card{background:linear-gradient(180deg,var(--panel),#0a1625);border:1px solid var(--border);
-border-radius:16px;padding:14px;margin-bottom:14px}
-.row{display:flex;align-items:center;justify-content:space-between;gap:10px}
-.status{display:flex;align-items:center;gap:8px}.dot{width:10px;height:10px;border-radius:50%;background:#66768a}
-.dot.on{background:var(--green);box-shadow:0 0 0 4px rgba(52,211,153,.12)}
-.dot.rec{background:var(--red);box-shadow:0 0 0 4px rgba(255,122,133,.12)}
+.app{max-width:980px;margin:auto;padding:14px 12px 100px}
+.header{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:4px 2px 14px}
+.brand{display:flex;align-items:center;gap:11px}.logo{width:42px;height:42px;border-radius:13px;
+background:linear-gradient(135deg,var(--blue),var(--cyan));color:#06101d;display:grid;place-items:center;font-weight:900}
+.title{font-size:19px;font-weight:850}.subtitle{font-size:11px;color:var(--muted);margin-top:3px}
+.pill{font-size:10px;padding:6px 9px;border:1px solid #2d4663;border-radius:999px;color:#c9d9e8;background:#0b1828}
+.card{background:linear-gradient(180deg,var(--panel),#0a1523);border:1px solid var(--line);border-radius:18px;
+padding:14px;margin-bottom:12px;box-shadow:0 10px 28px rgba(0,0,0,.16)}
+.card h2{font-size:14px;margin:0}.row{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.statusline{display:flex;align-items:center;gap:8px}.dot{width:10px;height:10px;border-radius:50%;background:#64748b}
+.dot.on{background:var(--green);box-shadow:0 0 0 4px rgba(49,209,124,.12)}
 .small{font-size:11px;color:var(--muted);line-height:1.45}
-button{border:1px solid #2b4969;border-radius:12px;background:#17304c;color:white;padding:11px 13px;
+button{appearance:none;border:1px solid #2a4563;background:#162b44;color:#fff;padding:11px 14px;border-radius:12px;
 font-weight:750;font-size:13px}
-button.primary{background:var(--blue);color:#06111e;border-color:transparent}
-button.green{background:#143d2c;color:#a0f2c2;border-color:#236545}
-button.red{background:#3d1720;color:#ffabb2;border-color:#6a2a37}
-button:disabled{opacity:.42}
-input,select,textarea{width:100%;background:#081522;color:white;border:1px solid #2a405b;
-border-radius:10px;padding:10px;font-size:14px}
-label{display:block;color:var(--muted);font-size:11px;margin:8px 0 5px}
-.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+button.primary{background:var(--blue);color:#07111f;border-color:transparent}
+button.green{background:#123b29;color:#aaf1ca;border-color:#205f43}
+button.red{background:#3a1720;color:#ffabb3;border-color:#6a2c38}
+button.secondary{background:#0d1d30}button:disabled{opacity:.42}
+label{display:block;color:var(--muted);font-size:10px;margin:8px 0 5px}
+input,select,textarea{width:100%;padding:10px;border-radius:11px;border:1px solid #2a405b;background:#081522;color:#fff;font-size:14px}
 .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
-.metric{background:var(--panel2);border:1px solid #1d334b;border-radius:12px;padding:10px}
-.k{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
-.v{font-size:17px;font-weight:850;margin-top:4px;font-variant-numeric:tabular-nums}
-canvas{display:block;width:100%;height:145px;background:#06101a;border-radius:10px}
-.plot{margin-top:10px}.plothead{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:5px}
-.controls{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:12px}
-.events{display:flex;flex-wrap:wrap;gap:7px}.events button{padding:8px 10px;font-size:12px}
-.log{max-height:180px;overflow:auto;margin-top:10px}
-.evrow{display:grid;grid-template-columns:65px 1fr;gap:7px;padding:7px 8px;border-bottom:1px solid #17304a;font-size:11px}
-.tm{color:var(--cyan);font-variant-numeric:tabular-nums}
-.warn{background:#2c2211;border:1px solid #5d4821;color:#ffd993;border-radius:12px;padding:10px;font-size:11px;line-height:1.45}
-.ok{background:#102b22;border:1px solid #245e48;color:#a9f0cb;border-radius:12px;padding:10px;font-size:11px;line-height:1.45}
-.err{background:#30151b;border:1px solid #6c2b38;color:#ffb0b7;border-radius:12px;padding:10px;font-size:11px;line-height:1.45}
-.code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px;color:#b7cae0;word-break:break-all}
-@media(max-width:800px){.grid{grid-template-columns:1fr}.metrics{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:520px){.two{grid-template-columns:1fr}.controls{grid-template-columns:1fr}canvas{height:125px}.wrap{padding:12px 9px 28px}}
+.metric{background:var(--panel2);border:1px solid #1b3048;border-radius:12px;padding:10px}
+.metric .k{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.metric .v{font-size:17px;font-weight:850;margin-top:4px;font-variant-numeric:tabular-nums}
+.signalcard{background:#08131f;border:1px solid #192d44;border-radius:14px;padding:10px;margin-top:10px}
+.signalhead{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:5px}
+canvas{width:100%;height:130px;display:block;background:#06101a;border-radius:10px}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:11px}
+.eventgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;margin-top:10px}
+.eventgrid button{padding:9px 8px;font-size:12px}
+.eventlog{margin-top:10px;max-height:170px;overflow:auto}.eventrow{display:grid;grid-template-columns:64px 1fr;gap:8px;
+padding:7px 0;border-bottom:1px solid #172a40;font-size:11px}.eventtime{color:var(--cyan);font-variant-numeric:tabular-nums}
+.notice{padding:10px;border-radius:12px;font-size:11px;line-height:1.5;background:#122132;border:1px solid #284158;color:#bcd0e4}
+.warn{background:#2b2212;border-color:#5d4821;color:#ffd991}.ok{background:#102b22;border-color:#245e48;color:#a9f0cb}
+.err{background:#31161c;border-color:#6d2d3a;color:#ffb0b8}
+.filelist{display:grid;gap:8px;margin-top:10px}.fileitem{display:flex;align-items:center;justify-content:space-between;gap:8px;
+padding:10px;border:1px solid #1d3249;background:#091624;border-radius:12px}
+.fileitem b{font-size:12px}.fileitem span{font-size:10px;color:var(--muted)}
+.tabs{position:fixed;left:50%;bottom:0;transform:translateX(-50%);width:min(100%,980px);display:grid;grid-template-columns:repeat(4,1fr);
+background:rgba(8,18,31,.96);backdrop-filter:blur(14px);border-top:1px solid #21344b;padding:8px 8px calc(8px + env(safe-area-inset-bottom));z-index:10}
+.tab{background:transparent;border:0;color:#8197ad;padding:8px 4px;font-size:11px}.tab.active{color:#fff}
+.section{display:none}.section.active{display:block}.desktopgrid{display:grid;grid-template-columns:1.35fr .85fr;gap:12px}
+@media(max-width:760px){.desktopgrid{grid-template-columns:1fr}.metrics{grid-template-columns:repeat(2,1fr)}}
+
+.plotwrap{display:grid;grid-template-columns:42px 1fr;gap:7px;align-items:stretch}
+.yaxis{position:relative;font-size:9px;color:var(--muted);min-height:130px}
+.yaxis .ylab{position:absolute;left:-15px;top:50%;transform:rotate(-90deg) translateY(-50%);transform-origin:center;white-space:nowrap}
+.yticks{position:absolute;right:0;top:0;bottom:0;display:flex;flex-direction:column;justify-content:space-between;text-align:right}
+
 </style>
 </head>
 <body>
-<div class="wrap">
-  <div class="top">
-    <div>
-      <h1>Cross Patch Recorder</h1>
-      <div class="sub">nRF52840 · Nordic UART · CH1 + CH2 · research build</div>
+<div class="app">
+  <div class="header">
+    <div class="brand">
+      <div class="logo">XY</div>
+      <div><div class="title">Cross Patch Recorder</div><div class="subtitle">Long-recording BLE research build</div></div>
     </div>
-    <div class="badge">BLE v3</div>
+    <div class="pill">v7 · voltage + smart filenames</div>
   </div>
 
-  <div class="grid">
-    <main>
-      <section class="card">
-        <div class="row">
-          <div>
-            <div class="status"><span class="dot" id="bleDot"></span><b id="bleStatus">Not connected</b></div>
-            <div class="small" id="deviceText">Open this page in Bluefy over HTTPS, then tap Connect Patch.</div>
+  <section id="recordSec" class="section active">
+    <div class="desktopgrid">
+      <div>
+        <div class="card">
+          <div class="row">
+            <div>
+              <div class="statusline"><span id="bleDot" class="dot"></span><b id="bleStatus">Not connected</b></div>
+              <div id="deviceText" class="small">Open in Bluefy over HTTPS.</div>
+            </div>
+            <button id="connectBtn" class="primary">Connect Patch</button>
           </div>
-          <button class="primary" id="connectBtn">Connect Patch</button>
+          <div id="bleMsg" class="small" style="margin-top:9px"></div>
         </div>
-        <div id="bleMsg" class="small" style="margin-top:10px"></div>
-      </section>
 
-      <section class="card">
-        <b>Experiment</b>
-        <div class="two">
-          <div><label>Session name</label><input id="session" value="sept_18_test"></div>
-          <div><label>Protocol</label>
-            <select id="protocol">
-              <option>Orientation</option><option>Walking</option><option>Meal / EGG</option>
-              <option>ECG / VCG</option><option>Free recording</option>
-            </select>
+        <div class="card">
+          <div class="row">
+      <h2>Live signals</h2>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="small">display only · stored full-rate</span>
+        <button id="autoZoomBtn" class="secondary" style="padding:7px 9px;font-size:11px">Auto Zoom: ON</button>
+      </div>
+    </div>
+          <div class="signalcard">
+      <div class="signalhead"><span>CH1</span><span><span id="ch1Now">0.0000</span> mV · scale ±<span id="scale1">0.100</span> mV</span></div>
+      <div class="plotwrap">
+        <div class="yaxis">
+          <div class="ylab">Voltage (mV)</div>
+          <div class="yticks"><span id="y1p">+0.100</span><span>0</span><span id="y1n">−0.100</span></div>
+        </div>
+        <canvas id="c1"></canvas>
+      </div>
+    </div>
+          <div class="signalcard">
+      <div class="signalhead"><span>CH2</span><span><span id="ch2Now">0.0000</span> mV · scale ±<span id="scale2">0.100</span> mV</span></div>
+      <div class="plotwrap">
+        <div class="yaxis">
+          <div class="ylab">Voltage (mV)</div>
+          <div class="yticks"><span id="y2p">+0.100</span><span>0</span><span id="y2n">−0.100</span></div>
+        </div>
+        <canvas id="c2"></canvas>
+      </div>
+    </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card">
+          <h2>Recording</h2>
+          <div class="metrics" style="margin-top:10px">
+            <div class="metric"><div class="k">Duration</div><div class="v" id="duration">00:00:00</div></div>
+            <div class="metric"><div class="k">Packets</div><div class="v" id="packetCount">0</div></div>
+            <div class="metric"><div class="k">Samples/ch</div><div class="v" id="sampleCount">0</div></div>
+            <div class="metric"><div class="k">Saved parts</div><div class="v" id="partCount">0</div></div>
           </div>
-          <div><label>Subject / trial code</label><input id="subject" value="S01_T01"></div>
-          <div><label>Per-channel sample rate</label>
-            <select id="fs"><option value="1000">1000 Hz</option><option value="500">500 Hz</option><option value="250">250 Hz</option></select>
+          <div class="actions"><button id="startBtn" class="green" disabled>● Start</button><button id="stopBtn" class="red" disabled>■ Stop</button></div>
+          <div class="notice warn" style="margin-top:10px">
+            For 30–60 min recording: keep Bluefy in the foreground and keep the iPhone screen awake. Do not lock the phone or switch apps for long periods.
           </div>
         </div>
-      </section>
 
-      <section class="card">
-        <div class="row"><b>Live signals</b><span class="small">display decimated; saved data are full-rate</span></div>
-        <div class="plot">
-          <div class="plothead"><span>CH1</span><span id="ch1Now">0.000</span></div>
-          <canvas id="c1"></canvas>
+        <div class="card">
+          <h2>Session</h2>
+          <label>Session name</label><input id="session" value="sept_18_long_test">
+          <label>Protocol</label>
+          <select id="protocol"><option>Orientation</option><option>Walking</option><option>Meal / EGG</option><option>ECG / VCG</option><option>Free recording</option></select>
+          <label>Subject / trial</label><input id="subject" value="S01_T01">
+          <label>Per-channel sample rate</label>
+          <select id="fs"><option value="1000">1000 Hz</option><option value="500">500 Hz</option><option value="250">250 Hz</option></select>
+          <label>Auto-save part length</label>
+          <select id="chunkMin"><option value="5" selected>5 minutes</option><option value="10">10 minutes</option></select>
         </div>
-        <div class="plot">
-          <div class="plothead"><span>CH2</span><span id="ch2Now">0.000</span></div>
-          <canvas id="c2"></canvas>
-        </div>
-      </section>
+      </div>
+    </div>
+  </section>
 
-      <section class="card">
-        <div class="metrics">
-          <div class="metric"><div class="k">Duration</div><div class="v" id="duration">00:00:00</div></div>
-          <div class="metric"><div class="k">Packets</div><div class="v" id="packetCount">0</div></div>
-          <div class="metric"><div class="k">Samples/ch</div><div class="v" id="sampleCount">0</div></div>
-          <div class="metric"><div class="k">Framing issues</div><div class="v" id="frameIssues">0</div></div>
-        </div>
-        <div class="controls">
-          <button class="green" id="startBtn" disabled>● Start Recording</button>
-          <button class="red" id="stopBtn" disabled>■ Stop Recording</button>
-        </div>
-        <div class="small" style="margin-top:9px">
-          “Framing issues” is not a true BLE packet-loss counter. True loss detection needs the firmware packet-sequence definition.
-        </div>
-      </section>
-    </main>
+  <section id="eventsSec" class="section">
+    <div class="card">
+      <div class="row"><h2>Event markers</h2><span class="small">global session time</span></div>
+      <div class="eventgrid">
+        <button data-event="Patch 0°">Patch 0°</button><button data-event="Patch 45°">Patch 45°</button>
+        <button data-event="Patch 90°">Patch 90°</button><button data-event="Patch 135°">Patch 135°</button>
+        <button data-event="Sitting">Sitting</button><button data-event="Standing">Standing</button>
+        <button data-event="Walking start">Walking start</button><button data-event="Walking stop">Walking stop</button>
+        <button data-event="Meal start">Meal start</button><button data-event="Meal end">Meal end</button>
+        <button data-event="Custom note">Custom note</button>
+      </div>
+      <div id="eventLog" class="eventlog"><div class="small">No events yet.</div></div>
+    </div>
+  </section>
 
-    <aside>
-      <section class="card">
-        <b>Event marker</b>
-        <div class="events" style="margin-top:10px">
-          <button data-event="Patch 0°">0°</button><button data-event="Patch 45°">45°</button>
-          <button data-event="Patch 90°">90°</button><button data-event="Patch 135°">135°</button>
-          <button data-event="Sitting">Sitting</button><button data-event="Standing">Standing</button>
-          <button data-event="Walking start">Walking</button><button data-event="Walking stop">Stop walk</button>
-          <button data-event="Meal start">Meal</button><button data-event="Custom note">Custom</button>
-        </div>
-        <div class="log" id="eventLog"><div class="small">Events appear here while recording.</div></div>
-      </section>
+  <section id="detailsSec" class="section">
+    <div class="card"><h2>Experiment setup</h2>
+      <div id="setupPreview" class="notice" style="margin-top:8px">Setup summary will appear here.</div>
+      <label>Notes</label>
+      <textarea id="notes" rows="7" placeholder="Patch position, posture, meal, movement, observations..."></textarea>
+    </div>
+    <div class="card"><h2>Storage strategy</h2>
+      <div class="small" style="margin-top:8px">
+        Data are buffered briefly, then written into IndexedDB in 5-minute (or 10-minute) CSV parts. This avoids keeping a full 30–60 minute recording in RAM.
+        After Stop, export each part plus the session metadata.
+      </div>
+    </div>
+  </section>
 
-      <section class="card">
-        <b>Notes</b>
-        <textarea id="notes" rows="5" placeholder="Patch position, posture, meal, movement, observations..."></textarea>
-      </section>
-
-      <section class="card">
-        <b>Export</b>
-        <div class="small" style="margin:7px 0 10px">
-          Data CSV uses the same Python-style decoded channel units:
-          <span class="code">(uint16 − 32768) × 100 / 65536</span>.
-        </div>
-        <div class="controls">
-          <button id="csvBtn" disabled>Share / Save CSV</button>
-          <button id="metaBtn" disabled>Share / Save Metadata</button>
-        </div>
-        <div id="exportMsg" class="small" style="margin-top:9px"></div>
-      </section>
-
-      <section class="card">
-        <b>BLE protocol used</b>
-        <div class="small" style="margin-top:8px">Nordic UART Service</div>
-        <div class="code">Service: 6e400001-b5a3-f393-e0a9-e50e24dcca9e</div>
-        <div class="code">TX notify: 6e400003-b5a3-f393-e0a9-e50e24dcca9e</div>
-        <div class="small" style="margin-top:8px">Expected frame: 200 bytes = 2 header + 196 data + 2 trailer.</div>
-        <div class="small">Data: 98 little-endian uint16 values alternating CH1, CH2 → 49 samples/channel.</div>
-      </section>
-
-      <section class="warn">
-        First BLE test: record only 10–30 seconds. Confirm CH1/CH2 waveforms and CSV values before attempting long experiments.
-      </section>
-    </aside>
-  </div>
+  <section id="exportSec" class="section">
+    <div class="card">
+      <div class="row"><h2>Saved recording parts</h2><button id="refreshParts" class="secondary">Refresh</button></div>
+      <div id="fileList" class="filelist"><div class="small">No saved parts yet.</div></div>
+    </div>
+    <div class="card">
+      <h2>Optional session info</h2>
+      <div class="actions">
+        <button id="metaBtn" disabled>Save Setup Info (optional)</button>
+        <button id="clearBtn" class="red">Clear Saved Session</button>
+      </div>
+      <div id="exportMsg" class="small" style="margin-top:10px"></div>
+    </div>
+    <div class="notice">
+      For a 60-minute session with 5-minute auto-save, expect about 12 CSV parts. Each filename already includes subject, recording, protocol, condition, orientation, posture, date/time, and part number. The setup JSON is optional. MATLAB can concatenate them in order.
+    </div>
+  </section>
 </div>
+
+<nav class="tabs">
+  <button class="tab active" data-tab="recordSec">Record</button>
+  <button class="tab" data-tab="eventsSec">Events</button>
+  <button class="tab" data-tab="detailsSec">Details</button>
+  <button class="tab" data-tab="exportSec">Export</button>
+</nav>
 
 <script>
 (() => {
 'use strict';
+const NUS_SERVICE='6e400001-b5a3-f393-e0a9-e50e24dcca9e';
+const NUS_TX='6e400003-b5a3-f393-e0a9-e50e24dcca9e';
+const FRAME_BYTES=200, DATA_OFFSET=2, SAMPLES_PER_FRAME=49, PYTHON_GAIN=100.0;
+const INA_GAIN=250.0;
+const CSV_TO_ADC_V=24.576/PYTHON_GAIN;
+const CSV_TO_INPUT_MV=CSV_TO_ADC_V/INA_GAIN*1000.0;
+const DB_NAME='CrossPatchRecorderDB', STORE='parts', DB_VER=1;
+const $=id=>document.getElementById(id);
 
-const NUS_SERVICE = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
-const NUS_TX      = '6e400003-b5a3-f393-e0a9-e50e24dcca9e';
-const FRAME_BYTES = 200;
-const DATA_OFFSET = 2;
-const VALUES_PER_FRAME = 98;
-const SAMPLES_PER_CHANNEL_PER_FRAME = 49;
-const PYTHON_GAIN = 100.0;
+let device=null,server=null,txChar=null,connected=false,recording=false;
+let rxBuffer=new Uint8Array(0),packetCount=0,sampleCount=0,frameIssues=0;
+let startWall=0,timer=null,events=[],sessionId='',partIndex=1,partStartSample=0;
+let lineBuffer=[],bufferChars=0,flushBusy=false;
+let d1=Array(520).fill(0),d2=Array(520).fill(0),dispCounter=0;
+let autoZoom=true, scale1=0.1, scale2=0.1;
+let wakeLock=null;
 
-const $ = id => document.getElementById(id);
-let device=null, server=null, txChar=null;
-let connected=false, recording=false;
-let rxBuffer = new Uint8Array(0);
-let packetCount=0, sampleCount=0, frameIssues=0;
-let startWall=0, timer=null;
-let rows=[], events=[];
-let display1=Array(520).fill(0), display2=Array(520).fill(0);
-let displayCounter=0;
+function safeName(s){return (s||'session').trim().replace(/[^a-zA-Z0-9_-]+/g,'_').replace(/^_+|_+$/g,'')||'session'}
+function stamp(){
+  const d=new Date();
+  const pad=n=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+}
+function setupParts(){
+  return [
+    safeName($('subject').value),
+    safeName($('session').value),
+    safeName($('protocol').value),
+    safeName($('condition').value),
+    safeName($('orientation').value),
+    safeName($('posture').value)
+  ].filter(Boolean);
+}
+function baseFilename(){
+  return setupParts().join('_')+'_'+stamp();
+}
+function updateSetupPreview(){
+  const el=$('setupPreview');
+  if(!el) return;
+  el.textContent=`${$('subject').value} | ${$('session').value} | ${$('protocol').value} | ${$('condition').value} | ${$('orientation').value} | ${$('posture').value}`;
+}
+function fmt(ms){let s=Math.max(0,Math.floor(ms/1000));const h=String(Math.floor(s/3600)).padStart(2,'0');s%=3600;const m=String(Math.floor(s/60)).padStart(2,'0'),ss=String(s%60).padStart(2,'0');return `${h}:${m}:${ss}`}
+function setMsg(msg,cls='small'){const e=$('bleMsg');e.className=cls;e.textContent=msg}
+function setConnected(on,name=''){connected=on;$('bleDot').classList.toggle('on',on);$('bleStatus').textContent=on?'Connected':'Not connected';$('deviceText').textContent=on?(name||'Cross Patch'):'Open in Bluefy over HTTPS.';$('connectBtn').textContent=on?'Disconnect':'Connect Patch';$('startBtn').disabled=!on||recording}
+function updateCounters(){$('packetCount').textContent=packetCount.toLocaleString();$('sampleCount').textContent=sampleCount.toLocaleString();$('partCount').textContent=Math.max(0,partIndex-1).toString()}
+function openDB(){return new Promise((resolve,reject)=>{const req=indexedDB.open(DB_NAME,DB_VER);req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains(STORE))db.createObjectStore(STORE,{keyPath:'key'})};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
+async function putPart(obj){const db=await openDB();return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).put(obj);tx.oncomplete=()=>{db.close();resolve()};tx.onerror=()=>{db.close();reject(tx.error)}})}
+async function getParts(){const db=await openDB();return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readonly');const req=tx.objectStore(STORE).getAll();req.onsuccess=()=>{db.close();resolve(req.result||[])};req.onerror=()=>{db.close();reject(req.error)}})}
+async function clearParts(){const db=await openDB();return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).clear();tx.oncomplete=()=>{db.close();resolve()};tx.onerror=()=>{db.close();reject(tx.error)}})}
 
-function setMsg(msg, kind='small'){
-  const el=$('bleMsg'); el.className=kind; el.textContent=msg;
+async function requestWakeLock(){
+  try{if('wakeLock' in navigator){wakeLock=await navigator.wakeLock.request('screen')}}catch(e){}
 }
-function safeName(s){
-  return (s||'session').trim().replace(/[^a-zA-Z0-9_-]+/g,'_').replace(/^_+|_+$/g,'') || 'session';
-}
-function fmt(ms){
-  let s=Math.max(0,Math.floor(ms/1000));
-  const h=String(Math.floor(s/3600)).padStart(2,'0'); s%=3600;
-  const m=String(Math.floor(s/60)).padStart(2,'0');
-  const ss=String(s%60).padStart(2,'0');
-  return `${h}:${m}:${ss}`;
-}
-function refreshCounters(){
-  $('packetCount').textContent=packetCount.toLocaleString();
-  $('sampleCount').textContent=sampleCount.toLocaleString();
-  $('frameIssues').textContent=frameIssues.toLocaleString();
-}
-function setConnected(on, name=''){
-  connected=on;
-  $('bleDot').classList.toggle('on',on);
-  $('bleStatus').textContent=on ? 'Connected' : 'Not connected';
-  $('deviceText').textContent=on ? (name || 'Cross Patch') : 'Open this page in Bluefy over HTTPS, then tap Connect Patch.';
-  $('connectBtn').textContent=on ? 'Disconnect' : 'Connect Patch';
-  $('startBtn').disabled=!on || recording;
-}
+async function releaseWakeLock(){try{if(wakeLock)await wakeLock.release()}catch(e){}wakeLock=null}
+
 async function connect(){
-  if(connected){ disconnect(); return; }
-  if(!navigator.bluetooth){
-    setMsg('Web Bluetooth is not available in this browser. Open the hosted HTTPS page inside Bluefy.', 'err');
-    return;
-  }
+  if(connected){disconnect();return}
+  if(!navigator.bluetooth){setMsg('Web Bluetooth unavailable. Open the hosted page inside Bluefy.','err');return}
   try{
-    setMsg('Opening Bluetooth device picker…');
-    device = await navigator.bluetooth.requestDevice({
-      filters: [{services:[NUS_SERVICE]}],
-      optionalServices: [NUS_SERVICE]
-    });
-    device.addEventListener('gattserverdisconnected', onDisconnected);
-    setMsg('Connecting to GATT…');
-    server = await device.gatt.connect();
-    const service = await server.getPrimaryService(NUS_SERVICE);
-    txChar = await service.getCharacteristic(NUS_TX);
+    setMsg('Opening Bluetooth picker…');
+    device=await navigator.bluetooth.requestDevice({filters:[{services:[NUS_SERVICE]}],optionalServices:[NUS_SERVICE]});
+    device.addEventListener('gattserverdisconnected',onDisconnected);
+    server=await device.gatt.connect();
+    const service=await server.getPrimaryService(NUS_SERVICE);
+    txChar=await service.getCharacteristic(NUS_TX);
     await txChar.startNotifications();
-    txChar.addEventListener('characteristicvaluechanged', onNotify);
-    rxBuffer = new Uint8Array(0);
-    setConnected(true, device.name || 'nRF52840');
-    setMsg('BLE notifications started.', 'ok');
-  }catch(err){
-    setConnected(false);
-    setMsg('Connect failed: ' + (err?.message || String(err)), 'err');
-  }
+    txChar.addEventListener('characteristicvaluechanged',onNotify);
+    rxBuffer=new Uint8Array(0);setConnected(true,device.name||'nRF52840');setMsg('BLE notifications started.','ok')
+  }catch(err){setConnected(false);setMsg('Connect failed: '+(err?.message||String(err)),'err')}
 }
 function disconnect(){
-  try{ if(txChar) txChar.removeEventListener('characteristicvaluechanged', onNotify); }catch(e){}
-  try{ if(device?.gatt?.connected) device.gatt.disconnect(); }catch(e){}
-  if(recording) stopRecording();
-  txChar=null; server=null; device=null;
-  setConnected(false);
-  setMsg('Disconnected.');
+  try{if(txChar)txChar.removeEventListener('characteristicvaluechanged',onNotify)}catch(e){}
+  try{if(device?.gatt?.connected)device.gatt.disconnect()}catch(e){}
+  if(recording)stopRecording();
+  txChar=null;server=null;device=null;setConnected(false);setMsg('Disconnected.')
 }
-function onDisconnected(){
-  if(recording) stopRecording();
-  txChar=null; server=null;
-  setConnected(false);
-  setMsg('Patch disconnected.', 'err');
-}
-function appendBytes(a,b){
-  const out=new Uint8Array(a.length+b.length); out.set(a,0); out.set(b,a.length); return out;
-}
+function onDisconnected(){if(recording)stopRecording();setConnected(false);setMsg('Patch disconnected.','err')}
+function append(a,b){const o=new Uint8Array(a.length+b.length);o.set(a);o.set(b,a.length);return o}
 function onNotify(ev){
-  const dv=ev.target.value;
-  const bytes=new Uint8Array(dv.buffer, dv.byteOffset, dv.byteLength);
-
-  // Most firmware sends one 200-byte NUS frame per notification.
-  // The accumulator also handles fragmented/combined notifications.
-  rxBuffer = appendBytes(rxBuffer, bytes);
-
-  while(rxBuffer.length >= FRAME_BYTES){
-    const frame = rxBuffer.slice(0, FRAME_BYTES);
-    rxBuffer = rxBuffer.slice(FRAME_BYTES);
-    decodeFrame(frame);
-  }
-
-  // If notifications repeatedly arrive at unusual lengths, the accumulator
-  // still reconstructs frames. We only count obviously runaway residual data.
-  if(rxBuffer.length > FRAME_BYTES*3){
-    frameIssues++;
-    rxBuffer = new Uint8Array(0);
-    refreshCounters();
-  }
+  const dv=ev.target.value,bytes=new Uint8Array(dv.buffer,dv.byteOffset,dv.byteLength);
+  rxBuffer=append(rxBuffer,bytes);
+  while(rxBuffer.length>=FRAME_BYTES){const frame=rxBuffer.slice(0,FRAME_BYTES);rxBuffer=rxBuffer.slice(FRAME_BYTES);decodeFrame(frame)}
+  if(rxBuffer.length>FRAME_BYTES*3){frameIssues++;rxBuffer=new Uint8Array(0);updateCounters()}
 }
 function decodeFrame(frame){
-  if(frame.length !== FRAME_BYTES){ frameIssues++; refreshCounters(); return; }
+  if(frame.length!==FRAME_BYTES){frameIssues++;updateCounters();return}
   packetCount++;
-
-  const fs = Number($('fs').value) || 1000;
-  const data = new DataView(frame.buffer, frame.byteOffset, frame.byteLength);
-
-  let latest1=0, latest2=0;
-  for(let i=0;i<SAMPLES_PER_CHANNEL_PER_FRAME;i++){
-    const off = DATA_OFFSET + i*4;
-    const u1 = data.getUint16(off, true);
-    const u2 = data.getUint16(off+2, true);
-
-    // Match the existing Python decoder.
-    const ch1 = (u1 - 32768) * PYTHON_GAIN / 65536.0;
-    const ch2 = (u2 - 32768) * PYTHON_GAIN / 65536.0;
-
-    latest1=ch1; latest2=ch2;
-
-    // Full-rate recording. Timebase is derived from the known per-channel fs.
+  const fs=Number($('fs').value)||1000;
+  const data=new DataView(frame.buffer,frame.byteOffset,frame.byteLength);
+  let l1=0,l2=0;
+  for(let i=0;i<SAMPLES_PER_FRAME;i++){
+    const off=DATA_OFFSET+i*4,u1=data.getUint16(off,true),u2=data.getUint16(off+2,true);
+    const ch1_csv=(u1-32768)*PYTHON_GAIN/65536.0,ch2_csv=(u2-32768)*PYTHON_GAIN/65536.0;
+    const ch1=ch1_csv*CSV_TO_INPUT_MV, ch2=ch2_csv*CSV_TO_INPUT_MV;
+    l1=ch1;l2=ch2;
     if(recording){
-      const t = sampleCount / fs;
-      rows.push(`${t.toFixed(6)},${ch1.toFixed(8)},${ch2.toFixed(8)},${packetCount}`);
-      sampleCount++;
+      const t=sampleCount/fs;
+      const line=`${t.toFixed(6)},${ch1_csv.toFixed(8)},${ch2_csv.toFixed(8)},${ch1.toFixed(8)},${ch2.toFixed(8)},${packetCount}\n`;
+      lineBuffer.push(line);bufferChars+=line.length;sampleCount++;
+      const chunkSamples=(Number($('chunkMin').value)||5)*60*fs;
+      if(sampleCount-partStartSample>=chunkSamples) finalizePart(false);
+      else if(bufferChars>1_000_000) flushBuffer();
     }
-
-    // Decimate only the on-screen display.
-    displayCounter++;
-    if(displayCounter % 8 === 0){
-      display1.push(ch1); display1.shift();
-      display2.push(ch2); display2.shift();
-    }
+    dispCounter++;if(dispCounter%8===0){d1.push(ch1);d1.shift();d2.push(ch2);d2.shift()}
   }
+  $('ch1Now').textContent=l1.toFixed(4);$('ch2Now').textContent=l2.toFixed(4);updateCounters();drawAll()
+}
 
-  $('ch1Now').textContent = latest1.toFixed(4);
-  $('ch2Now').textContent = latest2.toFixed(4);
-  refreshCounters();
-  drawAll();
+let currentPartText='';
+async function flushBuffer(){
+  if(flushBusy||lineBuffer.length===0)return;
+  flushBusy=true;
+  const text=lineBuffer.join('');lineBuffer=[];bufferChars=0;
+  currentPartText+=text;
+  flushBusy=false;
 }
-function startRecording(){
-  if(!connected || recording) return;
-  recording=true;
-  packetCount=0; sampleCount=0; frameIssues=0; rows=[]; events=[];
-  startWall=Date.now();
-  $('stopBtn').disabled=false;
-  $('startBtn').disabled=true;
-  $('csvBtn').disabled=true; $('metaBtn').disabled=true;
-  $('eventLog').innerHTML='';
-  addEvent('Recording started');
-  timer=setInterval(()=> $('duration').textContent=fmt(Date.now()-startWall), 250);
-  refreshCounters();
-  setMsg('Recording full-rate CH1/CH2 data.', 'ok');
+async function finalizePart(isFinal){
+  await flushBuffer();
+  if(!currentPartText && sampleCount===partStartSample)return;
+  const fs=Number($('fs').value)||1000;
+  const startSec=partStartSample/fs,endSec=sampleCount/fs;
+  const header='time_sec,CH1_csv,CH2_csv,CH1_input_mV,CH2_input_mV,packet_index\n';
+  const name=`${sessionId}_part${String(partIndex).padStart(2,'0')}.csv`;
+  await putPart({
+    key:`${sessionId}_${String(partIndex).padStart(3,'0')}`,
+    sessionId,partIndex,name,startSec,endSec,
+    sampleStart:partStartSample,sampleEnd:sampleCount,
+    text:header+currentPartText
+  });
+  partIndex++;partStartSample=sampleCount;currentPartText='';updateCounters();
+  if(!isFinal) setMsg(`Auto-saved part ${partIndex-1}. Recording continues…`,'ok');
 }
-function stopRecording(){
-  if(!recording) return;
-  addEvent('Recording stopped');
-  recording=false;
-  clearInterval(timer); timer=null;
-  $('startBtn').disabled=!connected;
-  $('stopBtn').disabled=true;
-  $('csvBtn').disabled=rows.length===0;
-  $('metaBtn').disabled=false;
-  setMsg(`Recording stopped. ${sampleCount.toLocaleString()} samples/channel stored in this browser session.`, 'ok');
+
+async function startRecording(){
+  if(!connected||recording)return;
+  await clearParts();
+  recording=true;packetCount=0;sampleCount=0;frameIssues=0;events=[];lineBuffer=[];bufferChars=0;currentPartText='';
+  startWall=Date.now();sessionId=baseFilename();partIndex=1;partStartSample=0;
+  $('stopBtn').disabled=false;$('startBtn').disabled=true;$('metaBtn').disabled=true;$('eventLog').innerHTML='';
+  addEvent('Recording started');timer=setInterval(()=>$('duration').textContent=fmt(Date.now()-startWall),250);
+  await requestWakeLock();updateCounters();setMsg('Recording started. Auto-save is active.','ok')
+}
+async function stopRecording(){
+  if(!recording)return;
+  addEvent('Recording stopped');recording=false;clearInterval(timer);timer=null;
+  await finalizePart(true);await releaseWakeLock();
+  $('startBtn').disabled=!connected;$('stopBtn').disabled=true;$('metaBtn').disabled=false;
+  setMsg(`Stopped. ${sampleCount.toLocaleString()} samples/channel saved in ${partIndex-1} part(s).`,'ok');
+  await refreshFileList()
 }
 function addEvent(name){
-  if(!recording && name!=='Recording stopped') return;
-  if(name==='Custom note'){
-    const x=prompt('Event note:');
-    if(!x) return;
-    name=x;
-  }
-  const t=(Date.now()-startWall)/1000;
-  events.push({time_sec:+Math.max(0,t).toFixed(3),event:name});
-  const row=document.createElement('div'); row.className='evrow';
-  row.innerHTML=`<span class="tm">${fmt(t*1000)}</span><span>${escapeHtml(name)}</span>`;
-  $('eventLog').appendChild(row);
-  $('eventLog').scrollTop=$('eventLog').scrollHeight;
+  if(!recording&&name!=='Recording stopped')return;
+  if(name==='Custom note'){const x=prompt('Event note:');if(!x)return;name=x}
+  const t=(Date.now()-startWall)/1000;events.push({time_sec:+Math.max(0,t).toFixed(3),event:name});
+  const row=document.createElement('div');row.className='eventrow';row.innerHTML=`<span class="eventtime">${fmt(t*1000)}</span><span>${escapeHtml(name)}</span>`;
+  $('eventLog').appendChild(row);$('eventLog').scrollTop=$('eventLog').scrollHeight
 }
-function escapeHtml(s){
-  return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-}
-function draw(id,arr,color){
-  const c=$(id), d=window.devicePixelRatio||1, r=c.getBoundingClientRect();
-  c.width=Math.max(1,Math.round(r.width*d)); c.height=Math.max(1,Math.round(r.height*d));
-  const x=c.getContext('2d'), w=c.width,h=c.height;
-  x.clearRect(0,0,w,h);
-  x.strokeStyle='rgba(255,255,255,.07)'; x.lineWidth=1*d;
-  for(let i=1;i<5;i++){const y=h*i/5;x.beginPath();x.moveTo(0,y);x.lineTo(w,y);x.stroke();}
-  let max=Math.max(0.1,...arr.map(v=>Math.abs(v)))*1.12;
-  x.strokeStyle=color; x.lineWidth=1.3*d; x.beginPath();
-  arr.forEach((v,i)=>{
-    const xx=i/(arr.length-1)*w, yy=h/2-(v/max)*h*.42;
-    i ? x.lineTo(xx,yy) : x.moveTo(xx,yy);
-  });
-  x.stroke();
-}
-function drawAll(){ draw('c1',display1,'#55a6ff'); draw('c2',display2,'#5ce1e6'); }
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 
-async function shareOrDownload(filename, blob, label){
-  const file = new File([blob], filename, {type:blob.type || 'application/octet-stream'});
+function robustScale(arr, oldScale){
+  const vals=arr.map(v=>Math.abs(v)).filter(v=>Number.isFinite(v)).sort((a,b)=>a-b);
+  if(!vals.length) return oldScale || 0.1;
+  const idx=Math.min(vals.length-1,Math.floor(vals.length*0.98));
+  let target=Math.max(0.02, vals[idx]*1.25);
+  if(!autoZoom) return Math.max(oldScale||0.1,0.02);
+  // Fast zoom-out for large signals, slower zoom-in to reduce visual pumping.
+  if(target>oldScale) return target;
+  return oldScale*0.90 + target*0.10;
+}
+function draw(id,arr,color,which){
+  const c=$(id),d=window.devicePixelRatio||1,r=c.getBoundingClientRect();
+  c.width=Math.max(1,Math.round(r.width*d));c.height=Math.max(1,Math.round(r.height*d));
+  const x=c.getContext('2d'),w=c.width,h=c.height;x.clearRect(0,0,w,h);
+  x.strokeStyle='rgba(255,255,255,.06)';x.lineWidth=1*d;
+  for(let i=1;i<5;i++){const y=h*i/5;x.beginPath();x.moveTo(0,y);x.lineTo(w,y);x.stroke()}
+  if(which===1){
+    scale1=robustScale(arr,scale1);
+    $('scale1').textContent=scale1.toFixed(3);
+    $('y1p').textContent='+'+scale1.toFixed(3);
+    $('y1n').textContent='−'+scale1.toFixed(3);
+  } else {
+    scale2=robustScale(arr,scale2);
+    $('scale2').textContent=scale2.toFixed(3);
+    $('y2p').textContent='+'+scale2.toFixed(3);
+    $('y2n').textContent='−'+scale2.toFixed(3);
+  }
+  const max=which===1?scale1:scale2;
+  x.strokeStyle=color;x.lineWidth=1.3*d;x.beginPath();
+  arr.forEach((v,i)=>{const xx=i/(arr.length-1)*w,yy=h/2-(v/max)*h*.42;i?x.lineTo(xx,yy):x.moveTo(xx,yy)});x.stroke()
+}
+function drawAll(){draw('c1',d1,'#4ea1ff',1);draw('c2',d2,'#5de1e6',2)}
+
+async function shareOrDownload(filename,text,type,label){
+  const blob=new Blob([text],{type}),file=new File([blob],filename,{type});
   try{
-    if(navigator.share && navigator.canShare && navigator.canShare({files:[file]})){
-      await navigator.share({files:[file], title:filename});
-      $('exportMsg').textContent=`${label}: Share sheet opened. Choose Save to Files.`;
-      return;
+    if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
+      await navigator.share({files:[file],title:filename});
+      $('exportMsg').textContent=`${label}: share sheet opened. Choose Save to Files.`;return
     }
-  }catch(err){
-    if(err?.name==='AbortError') return;
-  }
-  try{
-    const a=document.createElement('a');
-    a.href=URL.createObjectURL(blob); a.download=filename;
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(()=>URL.revokeObjectURL(a.href),1000);
-    $('exportMsg').textContent=`${label}: browser download requested.`;
-  }catch(err){
-    $('exportMsg').textContent=`${label} export failed: ${err?.message || err}`;
-  }
+  }catch(err){if(err?.name==='AbortError')return}
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);$('exportMsg').textContent=`${label}: browser download requested.`
 }
-function exportCsv(){
-  const name=safeName($('session').value);
-  const header='time_sec,CH1,CH2,packet_index\n';
-  const blob=new Blob([header, rows.join('\n'), '\n'], {type:'text/csv'});
-  shareOrDownload(`${name}_D1.csv`, blob, 'CSV');
+async function refreshFileList(){
+  const all=(await getParts()).filter(x=>!sessionId||x.sessionId===sessionId).sort((a,b)=>a.partIndex-b.partIndex);
+  const box=$('fileList');box.innerHTML='';
+  if(!all.length){box.innerHTML='<div class="small">No saved parts yet.</div>';return}
+  all.forEach(p=>{
+    const div=document.createElement('div');div.className='fileitem';
+    const info=document.createElement('div');info.innerHTML=`<b>${p.name}</b><br><span>${p.startSec.toFixed(1)}–${p.endSec.toFixed(1)} s · ${(p.sampleEnd-p.sampleStart).toLocaleString()} samples/ch</span>`;
+    const btn=document.createElement('button');btn.textContent='Share / Save';btn.onclick=()=>shareOrDownload(p.name,p.text,'text/csv','CSV part');
+    div.appendChild(info);div.appendChild(btn);box.appendChild(div)
+  })
 }
-function exportMeta(){
-  const name=safeName($('session').value);
-  const meta={
-    app:'Cross Patch Recorder BLE v3',
-    session:$('session').value,
-    protocol:$('protocol').value,
-    subject_trial:$('subject').value,
+async function exportMeta(){
+  const meta={app:'Cross Patch Recorder BLE v7',session:$('session').value,protocol:$('protocol').value,subject_trial:$('subject').value,
     nominal_sample_rate_hz_per_channel:Number($('fs').value),
-    ble_service_uuid:NUS_SERVICE,
-    ble_tx_notify_uuid:NUS_TX,
-    expected_frame_bytes:FRAME_BYTES,
-    frame_layout:'2 header + 196 data + 2 trailer',
-    payload_layout:'98 uint16 little-endian alternating CH1/CH2 = 49 samples/channel',
-    decoder:'(uint16 - 32768) * 100 / 65536',
-    packets_received:packetCount,
-    samples_per_channel:sampleCount,
-    framing_issues:frameIssues,
-    note_about_packet_loss:'True dropped-packet detection is not implemented because the firmware packet-sequence meaning has not been verified.',
-    notes:$('notes').value,
-    events
-  };
-  const blob=new Blob([JSON.stringify(meta,null,2)],{type:'application/json'});
-  shareOrDownload(`${name}_metadata.json`, blob, 'Metadata');
+    ina_gain:INA_GAIN,
+    python_gain:PYTHON_GAIN,
+    csv_to_input_mV:CSV_TO_INPUT_MV,
+    auto_save_part_minutes:Number($('chunkMin').value),
+    packets_received:packetCount,samples_per_channel:sampleCount,frame_issues:frameIssues,notes:$('notes').value,events,
+    guidance:'Keep all CSV parts together. Concatenate by part number for MATLAB.'};
+  await shareOrDownload(`${sessionId || baseFilename()}_setup.json`,JSON.stringify(meta,null,2),'application/json','Setup info')
+}
+async function clearSession(){
+  if(recording){alert('Stop recording first.');return}
+  if(!confirm('Clear all saved CSV parts from this browser?'))return;
+  await clearParts();$('metaBtn').disabled=true;sessionId='';partIndex=1;await refreshFileList();$('exportMsg').textContent='Saved session cleared.'
 }
 
-$('connectBtn').addEventListener('click',connect);
-$('startBtn').addEventListener('click',startRecording);
-$('stopBtn').addEventListener('click',stopRecording);
-$('csvBtn').addEventListener('click',exportCsv);
-$('metaBtn').addEventListener('click',exportMeta);
-document.querySelectorAll('[data-event]').forEach(b=>b.addEventListener('click',()=>addEvent(b.dataset.event)));
-window.addEventListener('resize',drawAll);
-drawAll();
+$('autoZoomBtn').onclick=()=>{
+  autoZoom=!autoZoom;
+  $('autoZoomBtn').textContent='Auto Zoom: '+(autoZoom?'ON':'OFF');
+  if(autoZoom){scale1=0.1;scale2=0.1}
+  drawAll();
+};
+['session','protocol','condition','orientation','posture','subject'].forEach(id=>{
+  $(id).addEventListener('input',updateSetupPreview);
+  $(id).addEventListener('change',updateSetupPreview);
+});
+updateSetupPreview();
 
+$('connectBtn').onclick=connect;$('startBtn').onclick=startRecording;$('stopBtn').onclick=stopRecording;
+$('metaBtn').onclick=exportMeta;$('clearBtn').onclick=clearSession;$('refreshParts').onclick=refreshFileList;
+document.querySelectorAll('[data-event]').forEach(b=>b.onclick=()=>addEvent(b.dataset.event));
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.section').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');$(b.dataset.tab).classList.add('active');if(b.dataset.tab==='exportSec')refreshFileList();setTimeout(drawAll,60)
+});
+document.addEventListener('visibilitychange',async()=>{if(document.visibilityState==='visible'&&recording)await requestWakeLock()});
+window.addEventListener('resize',drawAll);drawAll();refreshFileList();
 })();
 </script>
 </body>
