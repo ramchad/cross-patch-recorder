@@ -117,7 +117,7 @@ background:rgba(8,18,31,.96);backdrop-filter:blur(14px);border-top:1px solid #21
       <div class="logo">XY</div>
       <div><div class="title">Cross Patch Recorder</div><div class="subtitle">Long-recording BLE research build</div></div>
     </div>
-    <div class="pill">v10 · Bluefy + Box</div>
+    <div class="pill">v10.1 · Box fix</div>
   </div>
 
   <section id="recordSec" class="section active">
@@ -529,7 +529,7 @@ async function handleBoxOAuthReturn(){
     setBoxStatus('on','Connected to Box',`Connected as ${user.name||user.login||'Box user'}. Destination: ${$('boxFolderName').value.trim()||'ECG_measurement'}`);$('boxConnectBtn').textContent='Disconnect Box';
     await retryPendingBoxUploads();
   }catch(e){
-    setBoxStatus('warn','Box API error',e.message||String(e));
+    setBoxStatus('warn','Box connected, folder check failed',e.message||String(e));
   }
 }
 async function boxApi(url,opts={}){
@@ -562,7 +562,7 @@ async function ensureBoxFolder(){
     u.searchParams.set('fields','id,name,type');
     u.searchParams.set('limit','1000');
     if(marker)u.searchParams.set('marker',marker);
-    const r=await boxApi(u.toString(),{headers:{'BoxApi':'shared_link='}});
+    const r=await boxApi(u.toString());
     const data=await r.json();
     const hit=(data.entries||[]).find(x=>x.type==='folder'&&x.name===wanted);
     if(hit){boxFolderId=hit.id;return boxFolderId}
@@ -1056,7 +1056,7 @@ async function refreshFileList(){
   })
 }
 async function exportMeta(){
-  const meta={app:'Cross Patch Recorder BLE v10',session:val('session'),protocol:val('protocol'),subject_trial:val('subject'),
+  const meta={app:'Cross Patch Recorder BLE v10.1',session:val('session'),protocol:val('protocol'),subject_trial:val('subject'),
     nominal_sample_rate_hz_per_channel:Number($('fs').value),
     ina_gain:INA_GAIN,
     python_gain:PYTHON_GAIN,
