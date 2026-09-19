@@ -143,7 +143,7 @@ background:rgba(8,18,31,.96);backdrop-filter:blur(14px);border-top:1px solid #21
       <div class="logo">XY</div>
       <div><div class="title">Cross Patch Recorder</div><div class="subtitle">Long-recording BLE research build</div></div>
     </div>
-    <div class="pill">v11 · Mobile Quick Start</div>
+    <div class="pill">v11.1 · Mobile Quick Start FIXED</div>
   </div>
 
   
@@ -459,7 +459,7 @@ const CSV_TO_INPUT_MV=CSV_TO_ADC_V/INA_GAIN*1000.0;
 const DB_NAME='CrossPatchRecorderDB', STORE='parts', DB_VER=1;
 const $=id=>document.getElementById(id);
 
-let device=null,server=null,txChar=null,connected=false,recording=false;updateQuickUI();
+let device=null,server=null,txChar=null,connected=false,recording=false;
 let rxBuffer=new Uint8Array(0),packetCount=0,sampleCount=0,frameIssues=0;
 let startWall=0,timer=null,events=[],sessionId='',partIndex=1,partStartSample=0;
 let lineBuffer=[],bufferChars=0,flushBusy=false;
@@ -528,7 +528,15 @@ function updateSetupPreview(){
 }
 function fmt(ms){let s=Math.max(0,Math.floor(ms/1000));const h=String(Math.floor(s/3600)).padStart(2,'0');s%=3600;const m=String(Math.floor(s/60)).padStart(2,'0'),ss=String(s%60).padStart(2,'0');return `${h}:${m}:${ss}`}
 function setMsg(msg,cls='small'){const e=$('bleMsg');e.className=cls;e.textContent=msg}
-function setConnected(on,name=''){connected=on;$('bleDot').classList.toggle('on',on);$('bleStatus').textContent=on?'Connected':'Not connected';$('deviceText').textContent=on?(name||'Cross Patch'):'Open in Bluefy over HTTPS.';$('connectBtn').textContent=on?'Disconnect':'Connect Patch';$('startBtn').disabled=!on||recording}
+function setConnected(on,name=''){
+  connected=on;
+  $('bleDot').classList.toggle('on',on);
+  $('bleStatus').textContent=on?'Connected':'Not connected';
+  $('deviceText').textContent=on?(name||'Cross Patch'):'Open in Bluefy over HTTPS.';
+  $('connectBtn').textContent=on?'Disconnect':'Connect Patch';
+  $('startBtn').disabled=!on||recording;
+  updateQuickUI();
+}
 function updateCounters(){$('packetCount').textContent=packetCount.toLocaleString();$('sampleCount').textContent=sampleCount.toLocaleString();$('partCount').textContent=Math.max(0,partIndex-1).toString()}
 function openDB(){return new Promise((resolve,reject)=>{const req=indexedDB.open(DB_NAME,DB_VER);req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains(STORE))db.createObjectStore(STORE,{keyPath:'key'})};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
 async function putPart(obj){const db=await openDB();return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).put(obj);tx.oncomplete=()=>{db.close();resolve()};tx.onerror=()=>{db.close();reject(tx.error)}})}
@@ -1071,7 +1079,7 @@ async function startRecording(){
 }
 async function stopRecording(){
   if(!recording)return;
-  addEvent('Recording stopped');recording=false;clearInterval(timer);timer=null;
+  addEvent('Recording stopped');recording=false;updateQuickUI();clearInterval(timer);timer=null;
   await finalizePart(true);await releaseWakeLock();
   $('startBtn').disabled=!connected;$('stopBtn').disabled=true;$('metaBtn').disabled=false;
   setMsg(`Stopped. ${sampleCount.toLocaleString()} samples/channel saved in ${partIndex-1} part(s).`,'ok');
@@ -1171,7 +1179,7 @@ async function refreshFileList(){
   })
 }
 async function exportMeta(){
-  const meta={app:'Cross Patch Recorder BLE v11',session:val('session'),protocol:val('protocol'),subject_trial:val('subject'),
+  const meta={app:'Cross Patch Recorder BLE v11.1',session:val('session'),protocol:val('protocol'),subject_trial:val('subject'),
     nominal_sample_rate_hz_per_channel:Number($('fs').value),
     ina_gain:INA_GAIN,
     python_gain:PYTHON_GAIN,
@@ -1230,7 +1238,7 @@ function updateQuickUI(){
   if($('quickBle')) $('quickBle').textContent=bleOK?(device?.name||'Connected'):'Not connected';
   if($('quickRec')) $('quickRec').textContent=recOK?'Recording':'Stopped';
 
-  if($('quickBoxBtn')) $('quickBoxBtn').textContent=boxOK?'Box Connected':'Connect Box';
+  if($('quickBoxBtn')) $('quickBoxBtn').textContent=boxOK?'Disconnect Box':'Connect Box';
   if($('quickPatchBtn')) $('quickPatchBtn').textContent=bleOK?'Disconnect Patch':'Connect Patch';
   if($('quickStartBtn')){
     $('quickStartBtn').textContent=recOK?'Stop Recording':'Start Recording';
@@ -1280,6 +1288,7 @@ async function quickToggleRecording(){
 $('quickStartBtn').onclick=quickToggleRecording;
 $('stickyRecordBtn').onclick=quickToggleRecording;
 updateQuickUI();
+setMsg('Ready. Connect Box if needed, then connect the patch.');
 
 $('connectBtn').onclick=connect;$('startBtn').onclick=startRecording;$('stopBtn').onclick=stopRecording;
 $('metaBtn').onclick=exportMeta;$('clearBtn').onclick=clearSession;$('refreshParts').onclick=refreshFileList;
