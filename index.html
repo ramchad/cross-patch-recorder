@@ -108,6 +108,32 @@ background:rgba(8,18,31,.96);backdrop-filter:blur(14px);border-top:1px solid #21
 .uploadState.ok{color:#9ff0c6}.uploadState.err{color:#ffaaa8}.uploadState.busy{color:#ffd487}
 @media(max-width:520px){.boxGrid{grid-template-columns:1fr}}
 
+
+/* v11 mobile quick-start */
+.quickCard{border:1px solid #27415e;background:#0b1726}
+.quickSteps{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.quickStep{background:#0a1421;border:1px solid #1d3248;border-radius:12px;padding:10px;min-width:0}
+.quickStep .n{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.quickStep .s{font-size:12px;font-weight:750;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.quickActions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.quickActions button{min-height:50px;font-size:14px;font-weight:800}
+.quickActions .full{grid-column:1/-1}
+.mobileHint{font-size:10px;color:var(--muted);line-height:1.45;margin-top:8px}
+.compactSetup summary{cursor:pointer;font-weight:800}
+.stickyActions{position:sticky;bottom:8px;z-index:30;margin-top:12px;background:rgba(6,16,26,.94);backdrop-filter:blur(10px);border:1px solid #23384e;border-radius:16px;padding:10px}
+.stickyGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stickyGrid button{min-height:52px;font-size:14px;font-weight:850}
+@media(max-width:640px){
+  body{font-size:14px}
+  main,.wrap,.container{max-width:100%!important;padding-left:10px!important;padding-right:10px!important}
+  .card{border-radius:15px;padding:12px}
+  .quickSteps{grid-template-columns:1fr}
+  .quickActions{grid-template-columns:1fr}
+  .quickActions .full{grid-column:auto}
+  button,input,select{font-size:16px}
+  .tab{font-size:10px;padding:9px 4px}
+}
+
 </style>
 </head>
 <body>
@@ -117,10 +143,38 @@ background:rgba(8,18,31,.96);backdrop-filter:blur(14px);border-top:1px solid #21
       <div class="logo">XY</div>
       <div><div class="title">Cross Patch Recorder</div><div class="subtitle">Long-recording BLE research build</div></div>
     </div>
-    <div class="pill">v10.2 · Box session folders</div>
+    <div class="pill">v11 · Mobile Quick Start</div>
   </div>
 
-  <section id="recordSec" class="section active">
+  
+<section id="recordSec" class="section active">
+  <div class="card quickCard">
+    <div class="row">
+      <div>
+        <h2>Quick Start</h2>
+        <div class="small" style="margin-top:4px">Designed for phone use in Bluefy.</div>
+      </div>
+      <span id="quickReady" class="pill">Not ready</span>
+    </div>
+
+    <div class="quickSteps">
+      <div class="quickStep"><div class="n">1 · Box</div><div id="quickBox" class="s">Not connected</div></div>
+      <div class="quickStep"><div class="n">2 · Patch</div><div id="quickBle" class="s">Not connected</div></div>
+      <div class="quickStep"><div class="n">3 · Recording</div><div id="quickRec" class="s">Stopped</div></div>
+    </div>
+
+    <div class="quickActions">
+      <button id="quickBoxBtn" class="secondary">Connect Box</button>
+      <button id="quickPatchBtn" class="secondary">Connect Patch</button>
+      <button id="quickStartBtn" class="full startbtn">Start Recording</button>
+    </div>
+
+    <div class="mobileHint">
+      Normal order: Box → Patch → Start. Box login is only needed when the short-lived authorization has expired.
+      The recorder remembers the Worker URL and Box folder on this device.
+    </div>
+  </div>
+
     <div class="desktopgrid">
       <div>
         <div class="card">
@@ -234,7 +288,14 @@ background:rgba(8,18,31,.96);backdrop-filter:blur(14px);border-top:1px solid #21
         </div>
       </div>
     </div>
-  </section>
+  
+  <div class="stickyActions">
+    <div class="stickyGrid">
+      <button id="stickyPatchBtn" class="secondary">Connect Patch</button>
+      <button id="stickyRecordBtn" class="startbtn">Start</button>
+    </div>
+  </div>
+</section>
 
 
   <section id="eggSec" class="section">
@@ -330,7 +391,19 @@ background:rgba(8,18,31,.96);backdrop-filter:blur(14px);border-top:1px solid #21
     </div>
   </section>
 
-  <section id="detailsSec" class="section">
+  
+<section id="detailsSec" class="section">
+  <div class="card">
+    <h2>Phone shortcut</h2>
+    <div class="small" style="margin-top:8px">
+      Keep this recorder URL as your Bluefy start page/bookmark if your Bluefy version offers it:
+      <b>https://ramchad.github.io/cross-patch-recorder/</b>
+    </div>
+    <div class="notice" style="margin-top:10px">
+      Do not rely on an iOS Safari “Add to Home Screen” icon for BLE. The recorder needs to run inside Bluefy for Web Bluetooth.
+    </div>
+  </div>
+
     <div class="card"><h2>Experiment setup</h2>
       <div id="setupPreview" class="notice" style="margin-top:8px">Setup summary will appear here.</div>
       <label>Notes</label>
@@ -386,7 +459,7 @@ const CSV_TO_INPUT_MV=CSV_TO_ADC_V/INA_GAIN*1000.0;
 const DB_NAME='CrossPatchRecorderDB', STORE='parts', DB_VER=1;
 const $=id=>document.getElementById(id);
 
-let device=null,server=null,txChar=null,connected=false,recording=false;
+let device=null,server=null,txChar=null,connected=false,recording=false;updateQuickUI();
 let rxBuffer=new Uint8Array(0),packetCount=0,sampleCount=0,frameIssues=0;
 let startWall=0,timer=null,events=[],sessionId='',partIndex=1,partStartSample=0;
 let lineBuffer=[],bufferChars=0,flushBusy=false;
@@ -468,6 +541,7 @@ function setBoxStatus(state,text,msg=''){
   dot.className='boxDot'+(state==='on'?' on':state==='warn'?' warn':'');
   $('boxStatus').textContent=text;
   if(msg)$('boxMsg').textContent=msg;
+  setTimeout(updateQuickUI,0);
   $('boxRetryBtn').disabled=!boxAccessToken;
 }
 function normalizeWorkerUrl(v){
@@ -989,7 +1063,7 @@ async function finalizePart(isFinal){
 async function startRecording(){
   if(!connected||recording)return;
   await clearParts();
-  recording=true;packetCount=0;sampleCount=0;frameIssues=0;resetEggPreview();resetMultiScaleFilters();events=[];lineBuffer=[];bufferChars=0;currentPartText='';
+  recording=true;packetCount=0;sampleCount=0;frameIssues=0;resetEggPreview();resetMultiScaleFilters();updateQuickUI();events=[];lineBuffer=[];bufferChars=0;currentPartText='';
   startWall=Date.now();sessionId=baseFilename();partIndex=1;partStartSample=0;
   $('stopBtn').disabled=false;$('startBtn').disabled=true;$('metaBtn').disabled=true;$('eventLog').innerHTML='';
   addEvent('Recording started');timer=setInterval(()=>$('duration').textContent=fmt(Date.now()-startWall),250);
@@ -1097,7 +1171,7 @@ async function refreshFileList(){
   })
 }
 async function exportMeta(){
-  const meta={app:'Cross Patch Recorder BLE v10.2',session:val('session'),protocol:val('protocol'),subject_trial:val('subject'),
+  const meta={app:'Cross Patch Recorder BLE v11',session:val('session'),protocol:val('protocol'),subject_trial:val('subject'),
     nominal_sample_rate_hz_per_channel:Number($('fs').value),
     ina_gain:INA_GAIN,
     python_gain:PYTHON_GAIN,
@@ -1131,6 +1205,48 @@ $('autoZoomBtn').onclick=()=>{
 });
 updateSetupPreview();
 
+
+function saveSessionPrefs(){
+  const ids=['session','protocol','condition','orientation','posture','subject','fs','chunkMin'];
+  try{
+    const obj={};
+    ids.forEach(id=>{const el=$(id);if(el)obj[id]=el.value});
+    localStorage.setItem('crosspatch_session_prefs',JSON.stringify(obj));
+  }catch(e){}
+}
+function loadSessionPrefs(){
+  try{
+    const raw=localStorage.getItem('crosspatch_session_prefs');
+    if(!raw)return;
+    const obj=JSON.parse(raw);
+    Object.entries(obj).forEach(([id,val])=>{const el=$(id);if(el && val!=null)el.value=val});
+  }catch(e){}
+}
+function updateQuickUI(){
+  const boxOK=boxTokenValid();
+  const bleOK=!!connected;
+  const recOK=!!recording;
+  if($('quickBox')) $('quickBox').textContent=boxOK?'Connected':'Not connected';
+  if($('quickBle')) $('quickBle').textContent=bleOK?(device?.name||'Connected'):'Not connected';
+  if($('quickRec')) $('quickRec').textContent=recOK?'Recording':'Stopped';
+
+  if($('quickBoxBtn')) $('quickBoxBtn').textContent=boxOK?'Box Connected':'Connect Box';
+  if($('quickPatchBtn')) $('quickPatchBtn').textContent=bleOK?'Disconnect Patch':'Connect Patch';
+  if($('quickStartBtn')){
+    $('quickStartBtn').textContent=recOK?'Stop Recording':'Start Recording';
+    $('quickStartBtn').className=recOK?'full stopbtn':'full startbtn';
+  }
+  if($('stickyPatchBtn')) $('stickyPatchBtn').textContent=bleOK?'Disconnect':'Connect Patch';
+  if($('stickyRecordBtn')){
+    $('stickyRecordBtn').textContent=recOK?'Stop':'Start';
+    $('stickyRecordBtn').className=recOK?'stopbtn':'startbtn';
+  }
+  if($('quickReady')){
+    $('quickReady').textContent=(boxOK&&bleOK)?(recOK?'Recording':'Ready'):'Not ready';
+  }
+}
+
+loadSessionPrefs();
 loadBoxPrefs();
 $('boxConnectBtn').onclick=()=>{ if(boxTokenValid()) clearBoxToken(); else connectBox(); };
 $('boxRetryBtn').onclick=retryPendingBoxUploads;
@@ -1138,6 +1254,32 @@ $('boxWorkerUrl').addEventListener('change',saveBoxPrefs);
 $('boxFolderName').addEventListener('change',()=>{boxFolderId='';boxSessionFolderIds={};saveBoxPrefs()});
 $('boxAutoUpload').addEventListener('change',saveBoxPrefs);
 handleBoxOAuthReturn();
+
+
+['session','protocol','condition','orientation','posture','subject','fs','chunkMin'].forEach(id=>{
+  const el=$(id);if(!el)return;
+  el.addEventListener('change',saveSessionPrefs);
+  el.addEventListener('input',saveSessionPrefs);
+});
+
+$('quickBoxBtn').onclick=()=>{
+  if(boxTokenValid()) clearBoxToken();
+  else connectBox();
+};
+$('quickPatchBtn').onclick=()=>{ if(connected) disconnect(); else connect(); };
+$('stickyPatchBtn').onclick=()=>{ if(connected) disconnect(); else connect(); };
+
+async function quickToggleRecording(){
+  if(recording) await stopRecording();
+  else {
+    if(!connected){ setMsg('Connect the patch first.','warn'); return; }
+    await startRecording();
+  }
+  updateQuickUI();
+}
+$('quickStartBtn').onclick=quickToggleRecording;
+$('stickyRecordBtn').onclick=quickToggleRecording;
+updateQuickUI();
 
 $('connectBtn').onclick=connect;$('startBtn').onclick=startRecording;$('stopBtn').onclick=stopRecording;
 $('metaBtn').onclick=exportMeta;$('clearBtn').onclick=clearSession;$('refreshParts').onclick=refreshFileList;
