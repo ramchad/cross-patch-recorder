@@ -117,7 +117,7 @@ background:rgba(8,18,31,.96);backdrop-filter:blur(14px);border-top:1px solid #21
       <div class="logo">XY</div>
       <div><div class="title">Cross Patch Recorder</div><div class="subtitle">Long-recording BLE research build</div></div>
     </div>
-    <div class="pill">v10.1 · Box fix</div>
+    <div class="pill">v10.2 · Box session folders</div>
   </div>
 
   <section id="recordSec" class="section active">
@@ -165,7 +165,7 @@ background:rgba(8,18,31,.96);backdrop-filter:blur(14px);border-top:1px solid #21
             Connect Box before connecting the patch. Local IndexedDB backup is always kept first.
           </div>
           <div class="notice" style="margin-top:10px">
-            Box connection uses a short-lived OAuth access token in memory. If it expires, reconnect Box; any unuploaded parts stay saved locally.
+            Box structure: <b>ECG_measurement / one folder per recording / CSV parts</b>. Local IndexedDB remains the first backup. If Box authorization expires, reconnect Box; unuploaded parts stay saved locally.
           </div>
         </div>
 
@@ -416,6 +416,7 @@ let autoZoom=true, center1=0, center2=0, span1=0.1, span2=0.1;
 let boxAccessToken='';
 let boxTokenExpiresAt=0;
 let boxFolderId='';
+let boxSessionFolderIds={};
 let boxUploadBusy=false;
 const BOX_DIRECT_UPLOAD_LIMIT=50*1024*1024;
 
@@ -490,7 +491,7 @@ function boxTokenValid(){
   return !!boxAccessToken && Date.now() < boxTokenExpiresAt-30000;
 }
 function clearBoxToken(){
-  boxAccessToken='';boxTokenExpiresAt=0;boxFolderId='';
+  boxAccessToken='';boxTokenExpiresAt=0;boxFolderId='';boxSessionFolderIds={};
   setBoxStatus('off','Not connected','Box disconnected. Local recording storage is unchanged.');$('boxConnectBtn').textContent='Connect Box';
 }
 function connectBox(){
@@ -578,13 +579,53 @@ async function ensureBoxFolder(){
   boxFolderId=data.id;
   return boxFolderId;
 }
+
+async function findChildFolder(parentId,name){
+  let offset=0;
+  const limit=1000;
+  while(true){
+    const u=new URL(`https://api.box.com/2.0/folders/${encodeURIComponent(parentId)}/items`);
+    u.searchParams.set('fields','id,name,type');
+    u.searchParams.set('limit',String(limit));
+    u.searchParams.set('offset',String(offset));
+    const r=await boxApi(u.toString());
+    const data=await r.json();
+    const entries=data.entries||[];
+    const hit=entries.find(x=>x.type==='folder'&&x.name===name);
+    if(hit)return hit.id;
+    offset+=entries.length;
+    if(entries.length===0 || offset>=(data.total_count||0))break;
+  }
+  return '';
+}
+async function createChildFolder(parentId,name){
+  const r=await boxApi('https://api.box.com/2.0/folders',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({name,parent:{id:String(parentId)}})
+  });
+  const data=await r.json();
+  return data.id;
+}
+async function ensureRecordingFolder(part){
+  const rootId=await ensureBoxFolder();
+  const sessionName=safeName(part.sessionId||'recording');
+  if(boxSessionFolderIds[sessionName])return boxSessionFolderIds[sessionName];
+
+  let id=await findChildFolder(rootId,sessionName);
+  if(!id)id=await createChildFolder(rootId,sessionName);
+
+  boxSessionFolderIds[sessionName]=id;
+  return id;
+}
+
 async function updatePartUploadState(part,state,error=''){
   await putPart({...part,boxStatus:state,boxError:error,boxUploadedAt:state==='uploaded'?new Date().toISOString():(part.boxUploadedAt||'')});
 }
 async function uploadPartToBox(part){
   if(!boxTokenValid())throw new Error('Box is not connected.');
   if(part.boxStatus==='uploaded')return true;
-  const folderId=await ensureBoxFolder();
+  const folderId=await ensureRecordingFolder(part);
   const blob=new Blob([part.text],{type:'text/csv'});
   if(blob.size>BOX_DIRECT_UPLOAD_LIMIT){
     const mb=(blob.size/1024/1024).toFixed(1);
@@ -614,7 +655,7 @@ async function queueBoxUpload(part){
   boxUploadBusy=true;
   try{
     await uploadPartToBox(part);
-    setBoxStatus('on','Connected to Box',`Uploaded ${part.name}`);
+    setBoxStatus('on','Connected to Box',`Uploaded ${part.name} into ${safeName(part.sessionId||'recording')}/`);
   }catch(e){
     setBoxStatus('warn','Box upload pending',e.message||String(e));
   }finally{
@@ -1046,8 +1087,8 @@ async function refreshFileList(){
     const left=document.createElement('div');
     const st=p.boxStatus||'local';
     const stClass=st==='uploaded'?'ok':st==='uploading'?'busy':(st==='pending'||st==='too_large')?'err':'';
-    const stText=st==='uploaded'?'Box ✓ uploaded':
-      st==='uploading'?'Box ↑ uploading':
+    const stText=st==='uploaded'?`Box ✓ uploaded → ${safeName(p.sessionId||'recording')}/`:
+      st==='uploading'?`Box ↑ uploading → ${safeName(p.sessionId||'recording')}/`:
       st==='pending'?'Box ! pending':
       st==='too_large'?'Box ! too large':'Local only';
     left.innerHTML=`<b>${escapeHtml(p.name)}</b><div class="small">${p.startSec.toFixed(3)}–${p.endSec.toFixed(3)} s · samples ${p.sampleStart.toLocaleString()}–${p.sampleEnd.toLocaleString()}</div><div class="uploadState ${stClass}">${stText}${p.boxError?' · '+escapeHtml(p.boxError):''}</div>`;
@@ -1056,7 +1097,7 @@ async function refreshFileList(){
   })
 }
 async function exportMeta(){
-  const meta={app:'Cross Patch Recorder BLE v10.1',session:val('session'),protocol:val('protocol'),subject_trial:val('subject'),
+  const meta={app:'Cross Patch Recorder BLE v10.2',session:val('session'),protocol:val('protocol'),subject_trial:val('subject'),
     nominal_sample_rate_hz_per_channel:Number($('fs').value),
     ina_gain:INA_GAIN,
     python_gain:PYTHON_GAIN,
@@ -1094,7 +1135,7 @@ loadBoxPrefs();
 $('boxConnectBtn').onclick=()=>{ if(boxTokenValid()) clearBoxToken(); else connectBox(); };
 $('boxRetryBtn').onclick=retryPendingBoxUploads;
 $('boxWorkerUrl').addEventListener('change',saveBoxPrefs);
-$('boxFolderName').addEventListener('change',()=>{boxFolderId='';saveBoxPrefs()});
+$('boxFolderName').addEventListener('change',()=>{boxFolderId='';boxSessionFolderIds={};saveBoxPrefs()});
 $('boxAutoUpload').addEventListener('change',saveBoxPrefs);
 handleBoxOAuthReturn();
 
