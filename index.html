@@ -143,7 +143,7 @@ background:rgba(8,18,31,.96);backdrop-filter:blur(14px);border-top:1px solid #21
       <div class="logo">XY</div>
       <div><div class="title">Cross Patch Recorder</div><div class="subtitle">Long-recording BLE research build</div></div>
     </div>
-    <div class="pill">v11.1 · Mobile Quick Start FIXED</div>
+    <div class="pill">v11.2 · Long Recording FIX</div>
   </div>
 
   
@@ -284,6 +284,7 @@ background:rgba(8,18,31,.96);backdrop-filter:blur(14px);border-top:1px solid #21
           </select>
           <div class="small" style="margin-top:6px">
             This controls only how often the raw CSV is split. It does not change the live signal windows.
+            For 20–60 minute phone recordings, 2–5 minute parts are recommended to reduce browser memory pressure.
           </div>
         </div>
       </div>
@@ -1032,8 +1033,12 @@ function decodeFrame(frame){
       const line=`${t.toFixed(6)},${sampleCount},${ch1_csv.toFixed(8)},${ch2_csv.toFixed(8)},${ch1.toFixed(8)},${ch2.toFixed(8)},${packetCount},${partIndex}\n`;
       lineBuffer.push(line);bufferChars+=line.length;sampleCount++;
       const chunkSamples=(Number($('chunkMin').value)||5)*60*fs;
-      if(sampleCount-partStartSample>=chunkSamples) finalizePart(false);
-      else if(bufferChars>1_000_000) flushBuffer();
+      if(sampleCount-partStartSample>=chunkSamples){
+        rotatePart(false);
+      }else if(bufferChars>250_000){
+        // Keep temporary strings smaller on iPhone/iPad.
+        flushBufferSync();
+      }
     }
     
   }
@@ -1041,37 +1046,83 @@ function decodeFrame(frame){
 }
 
 let currentPartText='';
-async function flushBuffer(){
-  if(flushBusy||lineBuffer.length===0)return;
-  flushBusy=true;
-  const text=lineBuffer.join('');lineBuffer=[];bufferChars=0;
-  currentPartText+=text;
-  flushBusy=false;
+let partSaveChain=Promise.resolve();
+let partRotationCount=0;
+
+function flushBufferSync(){
+  if(lineBuffer.length===0)return;
+  currentPartText+=lineBuffer.join('');
+  lineBuffer=[];
+  bufferChars=0;
 }
-async function finalizePart(isFinal){
-  await flushBuffer();
-  if(!currentPartText && sampleCount===partStartSample)return;
+
+// IMPORTANT: this function rotates the in-memory part SYNCHRONOUSLY first,
+// then saves the completed snapshot asynchronously. Incoming BLE notifications
+// can therefore continue without repeatedly finalizing the same boundary.
+function rotatePart(isFinal){
+  flushBufferSync();
+  if(!currentPartText && sampleCount===partStartSample)return Promise.resolve();
+
   const fs=Number($('fs').value)||1000;
-  const startSec=partStartSample/fs,endSec=sampleCount/fs;
+  const completedPartIndex=partIndex;
+  const completedStartSample=partStartSample;
+  const completedEndSample=sampleCount-1;
+  const completedText=currentPartText;
+
+  const startSec=completedStartSample/fs;
+  const endSec=sampleCount/fs;
   const header='time_sec,global_sample_index,CH1_csv,CH2_csv,CH1_input_mV,CH2_input_mV,packet_index,part_index\n';
-  const name=`${sessionId}_part${String(partIndex).padStart(2,'0')}.csv`;
+  const name=`${sessionId}_part${String(completedPartIndex).padStart(2,'0')}.csv`;
+
   const savedPart={
-    key:`${sessionId}_${String(partIndex).padStart(3,'0')}`,
-    sessionId,partIndex,name,startSec,endSec,
-    sampleStart:partStartSample,sampleEnd:sampleCount-1,nextSampleIndex:sampleCount,
-    text:header+currentPartText,
-    boxStatus:'local',boxError:'',boxUploadedAt:''
+    key:`${sessionId}_${String(completedPartIndex).padStart(3,'0')}`,
+    sessionId,
+    partIndex:completedPartIndex,
+    name,
+    startSec,
+    endSec,
+    sampleStart:completedStartSample,
+    sampleEnd:completedEndSample,
+    nextSampleIndex:sampleCount,
+    text:header+completedText,
+    boxStatus:'local',
+    boxError:'',
+    boxUploadedAt:''
   };
-  await putPart(savedPart);
-  partIndex++;partStartSample=sampleCount;currentPartText='';updateCounters();
-  if(!isFinal) setMsg(`Auto-saved part ${partIndex-1}. Recording continues…`,'ok');
-  queueBoxUpload(savedPart);
+
+  // Rotate NOW before any IndexedDB await/yield.
+  currentPartText='';
+  partIndex++;
+  partStartSample=sampleCount;
+  partRotationCount++;
+  updateCounters();
+
+  if(!isFinal){
+    setMsg(`Part ${completedPartIndex} closed safely. Recording continues while it saves…`,'ok');
+  }
+
+  // Serialize IndexedDB saves so large CSV writes never overlap.
+  partSaveChain=partSaveChain.then(async()=>{
+    await putPart(savedPart);
+    queueBoxUpload(savedPart);
+    await refreshFileList();
+  }).catch(err=>{
+    console.error('Part save failed',err);
+    setMsg(`Part ${completedPartIndex} save error: ${err.message||err}`,'err');
+  });
+
+  return partSaveChain;
+}
+
+async function finalizePart(isFinal){
+  const p=rotatePart(isFinal);
+  if(isFinal) await p;
 }
 
 async function startRecording(){
   if(!connected||recording)return;
   await clearParts();
-  recording=true;packetCount=0;sampleCount=0;frameIssues=0;resetEggPreview();resetMultiScaleFilters();updateQuickUI();events=[];lineBuffer=[];bufferChars=0;currentPartText='';
+  recording=true;packetCount=0;sampleCount=0;frameIssues=0;resetEggPreview();resetMultiScaleFilters();updateQuickUI();events=[];lineBuffer=[];bufferChars=0;currentPartText='';partSaveChain=Promise.resolve();partRotationCount=0;
   startWall=Date.now();sessionId=baseFilename();partIndex=1;partStartSample=0;
   $('stopBtn').disabled=false;$('startBtn').disabled=true;$('metaBtn').disabled=true;$('eventLog').innerHTML='';
   addEvent('Recording started');timer=setInterval(()=>$('duration').textContent=fmt(Date.now()-startWall),250);
@@ -1080,7 +1131,9 @@ async function startRecording(){
 async function stopRecording(){
   if(!recording)return;
   addEvent('Recording stopped');recording=false;updateQuickUI();clearInterval(timer);timer=null;
-  await finalizePart(true);await releaseWakeLock();
+  await finalizePart(true);
+  await partSaveChain;
+  await releaseWakeLock();
   $('startBtn').disabled=!connected;$('stopBtn').disabled=true;$('metaBtn').disabled=false;
   setMsg(`Stopped. ${sampleCount.toLocaleString()} samples/channel saved in ${partIndex-1} part(s).`,'ok');
   await refreshFileList()
@@ -1179,7 +1232,7 @@ async function refreshFileList(){
   })
 }
 async function exportMeta(){
-  const meta={app:'Cross Patch Recorder BLE v11.1',session:val('session'),protocol:val('protocol'),subject_trial:val('subject'),
+  const meta={app:'Cross Patch Recorder BLE v11.2',session:val('session'),protocol:val('protocol'),subject_trial:val('subject'),
     nominal_sample_rate_hz_per_channel:Number($('fs').value),
     ina_gain:INA_GAIN,
     python_gain:PYTHON_GAIN,
